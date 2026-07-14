@@ -21,6 +21,14 @@ class GartentagebuchFelderCard extends HTMLElement {
 
   getCardSize() { return 4; }
 
+  static getConfigElement() {
+    return document.createElement("gartentagebuch-felder-card-editor");
+  }
+
+  static getStubConfig() {
+    return { title: "Garten", api_base: "http://192.168.178.114:3002/garten/api" };
+  }
+
   async _loadData() {
     const base = this._config.api_base.replace(/\/$/, "");
     try {
@@ -269,6 +277,59 @@ class GartentagebuchFelderCard extends HTMLElement {
 }
 
 customElements.define("gartentagebuch-felder-card", GartentagebuchFelderCard);
+
+class GartentagebuchFelderCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _schema() {
+    return [
+      { name: "title", selector: { text: {} } },
+      { name: "api_base", selector: { text: {} } },
+      { name: "standort_id", selector: { number: { mode: "box" } } }
+    ];
+  }
+
+  _labels(name) {
+    const map = {
+      title: "Titel",
+      api_base: "API Basis-URL (z.B. http://192.168.178.114:3002/garten/api)",
+      standort_id: "Standort-ID (optional, nur einen Standort anzeigen)"
+    };
+    return map[name] || name;
+  }
+
+  _render() {
+    if (!this._config || !this._hass) return;
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      this._form.addEventListener("value-changed", (ev) => {
+        ev.stopPropagation();
+        this._config = ev.detail.value;
+        this.dispatchEvent(new CustomEvent("config-changed", {
+          detail: { config: this._config },
+          bubbles: true,
+          composed: true
+        }));
+      });
+      this.innerHTML = "";
+      this.appendChild(this._form);
+    }
+    this._form.hass = this._hass;
+    this._form.data = this._config;
+    this._form.schema = this._schema();
+    this._form.computeLabel = (s) => this._labels(s.name);
+  }
+}
+
+customElements.define("gartentagebuch-felder-card-editor", GartentagebuchFelderCardEditor);
 
 // F\u00fcr die Karten-Auswahl in der HA-UI (optional, aber nett)
 window.customCards = window.customCards || [];
