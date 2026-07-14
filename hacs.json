@@ -1,6 +1,6 @@
 {
-  "name": "Gartentagebuch Felder",
+  "name": "Gartentagebuch Cards",
   "render_readme": true,
-  "filename": "gartentagebuch-felder-card.js",
+  "filename": "gartentagebuch-cards.js",
   "content_in_root": true
 }

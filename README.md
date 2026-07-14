@@ -1,21 +1,15 @@
-# Gartentagebuch Felder-Card
+# Gartentagebuch Cards
 
-Home-Assistant-Lovelace-Card fuer das Gartentagebuch: zeigt Standorte und Felder mit
-aktueller Belegung, oeffnet ein Ernte-Modal (Teilernte / Endgueltig ernten) und ein
-Pflanzen-Modal direkt aus dem Dashboard heraus. Spricht direkt mit der
-Gartentagebuch-App-API (`/garten/api`), keine eigene Datenhaltung.
+Sammlung von Home-Assistant-Lovelace-Cards fuer das Gartentagebuch. Aktuell enthalten:
 
-## Voraussetzung
+## gartentagebuch-felder-card
 
-CORS muss in der Gartentagebuch-App aktiviert sein (`app.use(require("cors")())` in
-`server.js`).
+Zeigt Standorte und Felder mit aktueller Belegung, oeffnet ein Ernte-Modal
+(Teilernte / Endgueltig ernten) und ein Pflanzen-Modal direkt aus dem Dashboard heraus.
+Spricht direkt mit der Gartentagebuch-App-API (`/garten/api`), keine eigene Datenhaltung.
 
-## Installation
-
-Als Dashboard-Resource einbinden (Typ: JavaScript-Modul), z.B. ueber HACS als
-benutzerdefiniertes Repository oder manuell in `/config/www/`.
-
-## Verwendung
+Voraussetzung: CORS muss in der Gartentagebuch-App aktiviert sein
+(`app.use(require("cors")())` in `server.js`).
 
 ```yaml
 type: custom:gartentagebuch-felder-card
@@ -23,3 +17,11 @@ title: Garten
 api_base: http://192.168.178.114:3002/garten/api
 standort_id: 21   # optional, nur einen Standort anzeigen
 ```
+
+Weitere Karten kommen als zusaetzliche `customElements.define(...)`-Bloecke in
+`gartentagebuch-cards.js` dazu.
+
+## Installation
+
+Als Dashboard-Resource einbinden (Typ: JavaScript-Modul), z.B. ueber HACS als
+benutzerdefiniertes Repository oder manuell in `/config/www/`.
