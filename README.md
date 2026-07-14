@@ -14,7 +14,7 @@ Voraussetzung: CORS muss in der Gartentagebuch-App aktiviert sein
 ```yaml
 type: custom:gartentagebuch-felder-card
 title: Garten
-api_base: http://192.168.178.114:3002/garten/api
+api_base: http://DEINE-IP-ODER-DOMAIN:3002/garten/api
 standort_id: 21   # optional, nur einen Standort anzeigen
 ```
 

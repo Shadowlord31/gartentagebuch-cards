@@ -26,7 +26,7 @@ class GartentagebuchFelderCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { title: "Garten", api_base: "http://192.168.178.114:3002/garten/api" };
+    return { title: "Garten", api_base: "" };
   }
 
   async _loadData() {
@@ -52,11 +52,15 @@ class GartentagebuchFelderCard extends HTMLElement {
     this._root.innerHTML = `
       <style>
         :host { --gt-green-deep:#2d5016; --gt-green-mid:#4a7c2f; --gt-harvest:#e8a020; --gt-harvest-pale:#fdf0d0;
-                --gt-cream:#f9f5ec; --gt-cream-dark:#ede8d8; --gt-text:#2a2a1e; --gt-text-muted:#6b6b50; --gt-white:#fff; }
+                --gt-cream:#f9f5ec; --gt-cream-dark:#ede8d8; --gt-white:#fff;
+                --gt-text-fixed:#2a2a1e; --gt-text-muted-fixed:#6b6b50;
+                --gt-text-adaptive: var(--primary-text-color, #2a2a1e);
+                --gt-text-muted-adaptive: var(--secondary-text-color, #6b6b50);
+                --gt-title-color: var(--primary-text-color, #2d5016); }
         ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; }
-        .gt-title { font-size:1.15rem; font-weight:700; color:var(--gt-green-deep); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .gt-title { font-size:1.15rem; font-weight:700; color:var(--gt-title-color); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
         .gt-standort { margin-bottom: 18px; }
-        .gt-standort-name { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--gt-text-muted); margin-bottom:8px; }
+        .gt-standort-name { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--gt-text-muted-adaptive); margin-bottom:8px; }
         .gt-felder { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
         .gt-feld { background:var(--gt-cream); border:1.5px solid var(--gt-cream-dark); border-radius:12px; padding:12px 10px; cursor:pointer; transition:.15s; text-align:center; }
         .gt-feld:hover { border-color: var(--gt-green-mid); transform: translateY(-1px); }
@@ -64,25 +68,25 @@ class GartentagebuchFelderCard extends HTMLElement {
         .gt-feld.geplant { border-style:dashed; border-color:var(--gt-harvest); }
         .gt-feld-badge { font-size:.68rem; font-weight:700; color:#8a5a00; background:var(--gt-harvest-pale); border-radius:6px; padding:1px 6px; display:inline-block; margin-top:2px; }
         .gt-feld-badge-dauerhaft { color:var(--gt-green-deep); background:#e8f5d8; }
-        .gt-feld-name { font-size:.72rem; font-weight:700; color:var(--gt-text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+        .gt-feld-name { font-size:.72rem; font-weight:700; color:var(--gt-text-muted-fixed); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
         .gt-feld-emoji { font-size:1.6rem; }
-        .gt-feld-plant { font-size:.85rem; font-weight:600; color:var(--gt-text); margin-top:2px; }
-        .gt-feld-empty-label { font-size:.8rem; color:var(--gt-text-muted); margin-top:2px; }
-        .gt-loading, .gt-error { color:var(--gt-text-muted); font-size:.9rem; padding:8px 0; }
+        .gt-feld-plant { font-size:.85rem; font-weight:600; color:var(--gt-text-fixed); margin-top:2px; }
+        .gt-feld-empty-label { font-size:.8rem; color:var(--gt-text-muted-fixed); margin-top:2px; }
+        .gt-loading, .gt-error { color:var(--gt-text-muted-adaptive); font-size:.9rem; padding:8px 0; }
         .gt-error { color:#c0392b; }
 
         .gt-modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:16px; }
         .gt-modal-backdrop.open { display:flex; }
         .gt-modal { background:var(--gt-white); border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.3); }
         .gt-modal-title { font-size:1.15rem; font-weight:700; color:var(--gt-green-deep); margin-bottom:6px; }
-        .gt-modal-sub { font-size:.88rem; color:var(--gt-text-muted); margin-bottom:16px; }
+        .gt-modal-sub { font-size:.88rem; color:var(--gt-text-muted-fixed); margin-bottom:16px; }
         .gt-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         .gt-form-full { grid-column: span 2; }
-        .gt-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gt-text-muted); margin-bottom:4px; }
-        .gt-form-grid input, .gt-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gt-cream-dark); border-radius:8px; font-size:.92rem; color:var(--gt-text); background:var(--gt-cream); }
+        .gt-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gt-text-muted-fixed); margin-bottom:4px; }
+        .gt-form-grid input, .gt-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gt-cream-dark); border-radius:8px; font-size:.92rem; color:var(--gt-text-fixed); background:var(--gt-cream); }
         .gt-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
         .gt-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
-        .gt-btn-cancel { background:none; border:1.5px solid var(--gt-cream-dark); color:var(--gt-text-muted); }
+        .gt-btn-cancel { background:none; border:1.5px solid var(--gt-cream-dark); color:var(--gt-text-muted-fixed); }
         .gt-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,var(--gt-harvest)); color:#5a3a00; }
         .gt-btn-final { flex:1; background:linear-gradient(135deg,#c0392b,#922b21); color:#fff; }
         .gt-btn-pflanzen { flex:1; background:linear-gradient(135deg,var(--gt-green-mid),var(--gt-green-deep)); color:#fff; }
@@ -317,7 +321,7 @@ class GartentagebuchFelderCardEditor extends HTMLElement {
   _labels(name) {
     const map = {
       title: "Titel",
-      api_base: "API Basis-URL (z.B. http://192.168.178.114:3002/garten/api)",
+      api_base: "API Basis-URL (z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api)",
       standort_id: "Standort-ID (optional, nur einen Standort anzeigen)"
     };
     return map[name] || name;
@@ -350,7 +354,7 @@ customElements.define("gartentagebuch-felder-card-editor", GartentagebuchFelderC
 
 class GartentagebuchGehoelzeCard extends HTMLElement {
   setConfig(config) {
-    if (!config.api_base) throw new Error("api_base ist erforderlich, z.B. http://192.168.178.114:3002/garten/api");
+    if (!config.api_base) throw new Error("api_base ist erforderlich, z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api");
     this._config = config;
     this._items = [];
     this._plants = [];
@@ -371,7 +375,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { title: "Gehoelze", api_base: "http://192.168.178.114:3002/garten/api" };
+    return { title: "Gehoelze", api_base: "" };
   }
 
   async _loadData() {
@@ -394,13 +398,16 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   _render() {
     this._root.innerHTML = `
       <style>
-        :host { --gh-green-deep:#2d5016; --gh-green-mid:#4a7c2f; --gh-cream:#f9f5ec; --gh-cream-dark:#ede8d8;
-                --gh-text:#2a2a1e; --gh-text-muted:#6b6b50; --gh-white:#fff; --gh-red:#c0392b; }
+        :host { --gh-green-deep:#2d5016; --gh-green-mid:#4a7c2f; --gh-cream:#f9f5ec; --gh-cream-dark: var(--divider-color, #ede8d8);
+                --gh-text: var(--primary-text-color, #2a2a1e);
+                --gh-text-muted: var(--secondary-text-color, #6b6b50);
+                --gh-text-fixed:#2a2a1e; --gh-text-muted-fixed:#6b6b50;
+                --gh-white:#fff; --gh-red:#c0392b; --gh-title-color: var(--primary-text-color, #2d5016); }
         ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; }
-        .gh-title { font-size:1.15rem; font-weight:700; color:var(--gh-green-deep); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .gh-title { font-size:1.15rem; font-weight:700; color:var(--gh-title-color); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
         .gh-row { display:flex; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid var(--gh-cream-dark); cursor:pointer; }
         .gh-row:last-child { border-bottom:none; }
-        .gh-row:hover { background:var(--gh-cream); }
+        .gh-row:hover { background: var(--secondary-background-color, var(--gh-cream)); }
         .gh-emoji { font-size:1.5rem; width:2rem; text-align:center; flex-shrink:0; }
         .gh-info { flex:1; min-width:0; }
         .gh-name { font-weight:700; color:var(--gh-text); font-size:.95rem; }
@@ -416,11 +423,11 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
         .gh-modal-title { font-size:1.15rem; font-weight:700; color:var(--gh-green-deep); margin-bottom:16px; }
         .gh-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         .gh-form-full { grid-column: span 2; }
-        .gh-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gh-text-muted); margin-bottom:4px; }
-        .gh-form-grid input, .gh-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gh-cream-dark); border-radius:8px; font-size:.92rem; color:var(--gh-text); background:var(--gh-cream); }
+        .gh-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gh-text-muted-fixed); margin-bottom:4px; }
+        .gh-form-grid input, .gh-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gh-cream-dark); border-radius:8px; font-size:.92rem; color:var(--gh-text-fixed); background:var(--gh-cream); }
         .gh-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
         .gh-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
-        .gh-btn-cancel { background:none; border:1.5px solid var(--gh-cream-dark); color:var(--gh-text-muted); }
+        .gh-btn-cancel { background:none; border:1.5px solid var(--gh-cream-dark); color:var(--gh-text-muted-fixed); }
         .gh-btn-save { flex:1; background:linear-gradient(135deg,var(--gh-green-mid),var(--gh-green-deep)); color:#fff; }
         .gh-btn-remove { background:none; border:1.5px solid var(--gh-red); color:var(--gh-red); }
       </style>
@@ -592,7 +599,7 @@ class GartentagebuchGehoelzeCardEditor extends HTMLElement {
   _labels(name) {
     const map = {
       title: "Titel",
-      api_base: "API Basis-URL (z.B. http://192.168.178.114:3002/garten/api)"
+      api_base: "API Basis-URL (z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api)"
     };
     return map[name] || name;
   }
