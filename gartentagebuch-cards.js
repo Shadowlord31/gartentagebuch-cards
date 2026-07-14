@@ -63,6 +63,7 @@ class GartentagebuchFelderCard extends HTMLElement {
         .gt-feld.leer { opacity:.6; }
         .gt-feld.geplant { border-style:dashed; border-color:var(--gt-harvest); }
         .gt-feld-badge { font-size:.68rem; font-weight:700; color:#8a5a00; background:var(--gt-harvest-pale); border-radius:6px; padding:1px 6px; display:inline-block; margin-top:2px; }
+        .gt-feld-badge-dauerhaft { color:var(--gt-green-deep); background:#e8f5d8; }
         .gt-feld-name { font-size:.72rem; font-weight:700; color:var(--gt-text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
         .gt-feld-emoji { font-size:1.6rem; }
         .gt-feld-plant { font-size:.85rem; font-weight:600; color:var(--gt-text); margin-top:2px; }
@@ -167,11 +168,13 @@ class GartentagebuchFelderCard extends HTMLElement {
       const zielListe = getLeaves(standort);
       const tiles = zielListe.map(feld => {
         const occ = (this._occupancy[feld.id] || [])[0];
-        if (occ && occ.source === "tagebuch") {
+        if (occ && (occ.source === "tagebuch" || occ.source === "dauerhaft")) {
+          const badge = occ.source === "dauerhaft" ? `<div class="gt-feld-badge gt-feld-badge-dauerhaft">Dauerhaft</div>` : "";
           return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="harvest" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}">
             <div class="gt-feld-name">${this._esc(feld.name)}</div>
             <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
             <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
+            ${badge}
           </div>`;
         }
         if (occ && occ.source === "planer") {
