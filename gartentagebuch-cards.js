@@ -61,6 +61,8 @@ class GartentagebuchFelderCard extends HTMLElement {
         .gt-feld { background:var(--gt-cream); border:1.5px solid var(--gt-cream-dark); border-radius:12px; padding:12px 10px; cursor:pointer; transition:.15s; text-align:center; }
         .gt-feld:hover { border-color: var(--gt-green-mid); transform: translateY(-1px); }
         .gt-feld.leer { opacity:.6; }
+        .gt-feld.geplant { border-style:dashed; border-color:var(--gt-harvest); }
+        .gt-feld-badge { font-size:.68rem; font-weight:700; color:#8a5a00; background:var(--gt-harvest-pale); border-radius:6px; padding:1px 6px; display:inline-block; margin-top:2px; }
         .gt-feld-name { font-size:.72rem; font-weight:700; color:var(--gt-text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
         .gt-feld-emoji { font-size:1.6rem; }
         .gt-feld-plant { font-size:.85rem; font-weight:600; color:var(--gt-text); margin-top:2px; }
@@ -165,11 +167,19 @@ class GartentagebuchFelderCard extends HTMLElement {
       const zielListe = getLeaves(standort);
       const tiles = zielListe.map(feld => {
         const occ = (this._occupancy[feld.id] || [])[0];
-        if (occ) {
+        if (occ && occ.source === "tagebuch") {
           return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="harvest" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}">
             <div class="gt-feld-name">${this._esc(feld.name)}</div>
             <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
             <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
+          </div>`;
+        }
+        if (occ && occ.source === "planer") {
+          return `<div class="gt-feld geplant" data-bed-id="${feld.id}" data-action="plant" data-preselect="${this._esc(occ.plant)}">
+            <div class="gt-feld-name">${this._esc(feld.name)}</div>
+            <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
+            <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
+            <div class="gt-feld-badge">Geplant</div>
           </div>`;
         }
         return `<div class="gt-feld leer" data-bed-id="${feld.id}" data-action="plant">
@@ -190,7 +200,7 @@ class GartentagebuchFelderCard extends HTMLElement {
         if (el.dataset.action === "harvest") {
           this._openHarvestModal(bedId, el.dataset.plant, el.dataset.emoji);
         } else {
-          this._openPlantModal(bedId);
+          this._openPlantModal(bedId, el.dataset.preselect || null);
         }
       };
     });
@@ -214,12 +224,16 @@ class GartentagebuchFelderCard extends HTMLElement {
   }
   _closeHarvestModal() { this._root.getElementById("harvest-backdrop").classList.remove("open"); }
 
-  _openPlantModal(bedId) {
+  _openPlantModal(bedId, preselectName) {
     const bed = this._beds.find(b => b.id === bedId);
     this._activeBedId = bedId;
-    this._root.getElementById("plant-sub").textContent = bed ? bed.name : "";
+    this._root.getElementById("plant-sub").textContent = (bed ? bed.name : "") + (preselectName ? " \u00b7 laut Planung: " + preselectName : "");
     const sel = this._root.getElementById("p-plant");
     sel.innerHTML = this._plants.map(p => `<option value="${p.id}" data-emoji="${p.emoji}" data-fam="${p.plant_family_id || ""}">${p.emoji} ${this._esc(p.name)}</option>`).join("");
+    if (preselectName) {
+      const match = this._plants.find(p => p.name.toLowerCase() === preselectName.toLowerCase());
+      if (match) sel.value = String(match.id);
+    }
     this._root.getElementById("p-date").value = this._today();
     this._root.getElementById("plant-backdrop").classList.add("open");
   }
