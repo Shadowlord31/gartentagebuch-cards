@@ -348,6 +348,286 @@ class GartentagebuchFelderCardEditor extends HTMLElement {
 
 customElements.define("gartentagebuch-felder-card-editor", GartentagebuchFelderCardEditor);
 
+class GartentagebuchGehoelzeCard extends HTMLElement {
+  setConfig(config) {
+    if (!config.api_base) throw new Error("api_base ist erforderlich, z.B. http://192.168.178.114:3002/garten/api");
+    this._config = config;
+    this._items = [];
+    this._plants = [];
+    this._loaded = false;
+    if (!this._root) {
+      this._root = this.attachShadow({ mode: "open" });
+      this._render();
+    }
+    this._loadData();
+  }
+
+  set hass(hass) { this._hass = hass; }
+
+  getCardSize() { return 3; }
+
+  static getConfigElement() {
+    return document.createElement("gartentagebuch-gehoelze-card-editor");
+  }
+
+  static getStubConfig() {
+    return { title: "Gehoelze", api_base: "http://192.168.178.114:3002/garten/api" };
+  }
+
+  async _loadData() {
+    const base = this._config.api_base.replace(/\/$/, "");
+    try {
+      const [items, plants] = await Promise.all([
+        fetch(`${base}/perennials`).then(r => r.json()),
+        fetch(`${base}/plants`).then(r => r.json()).catch(() => [])
+      ]);
+      this._items = items.filter(i => !i.removed_year);
+      this._plants = plants;
+      this._loaded = true;
+      this._renderList();
+    } catch (e) {
+      this._loaded = "error";
+      this._renderList(e.message);
+    }
+  }
+
+  _render() {
+    this._root.innerHTML = `
+      <style>
+        :host { --gh-green-deep:#2d5016; --gh-green-mid:#4a7c2f; --gh-cream:#f9f5ec; --gh-cream-dark:#ede8d8;
+                --gh-text:#2a2a1e; --gh-text-muted:#6b6b50; --gh-white:#fff; --gh-red:#c0392b; }
+        ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; }
+        .gh-title { font-size:1.15rem; font-weight:700; color:var(--gh-green-deep); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .gh-row { display:flex; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid var(--gh-cream-dark); cursor:pointer; }
+        .gh-row:last-child { border-bottom:none; }
+        .gh-row:hover { background:var(--gh-cream); }
+        .gh-emoji { font-size:1.5rem; width:2rem; text-align:center; flex-shrink:0; }
+        .gh-info { flex:1; min-width:0; }
+        .gh-name { font-weight:700; color:var(--gh-text); font-size:.95rem; }
+        .gh-meta { font-size:.8rem; color:var(--gh-text-muted); margin-top:2px; }
+        .gh-add-row { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; margin-top:8px; border:1.5px dashed var(--gh-cream-dark); border-radius:10px; cursor:pointer; color:var(--gh-text-muted); font-weight:700; font-size:.88rem; }
+        .gh-add-row:hover { border-color:var(--gh-green-mid); color:var(--gh-green-deep); }
+        .gh-loading, .gh-error, .gh-empty { color:var(--gh-text-muted); font-size:.9rem; padding:8px 0; }
+        .gh-error { color:var(--gh-red); }
+
+        .gh-modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:16px; }
+        .gh-modal-backdrop.open { display:flex; }
+        .gh-modal { background:var(--gh-white); border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.3); }
+        .gh-modal-title { font-size:1.15rem; font-weight:700; color:var(--gh-green-deep); margin-bottom:16px; }
+        .gh-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .gh-form-full { grid-column: span 2; }
+        .gh-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gh-text-muted); margin-bottom:4px; }
+        .gh-form-grid input, .gh-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gh-cream-dark); border-radius:8px; font-size:.92rem; color:var(--gh-text); background:var(--gh-cream); }
+        .gh-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+        .gh-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
+        .gh-btn-cancel { background:none; border:1.5px solid var(--gh-cream-dark); color:var(--gh-text-muted); }
+        .gh-btn-save { flex:1; background:linear-gradient(135deg,var(--gh-green-mid),var(--gh-green-deep)); color:#fff; }
+        .gh-btn-remove { background:none; border:1.5px solid var(--gh-red); color:var(--gh-red); }
+      </style>
+      <ha-card>
+        <div class="gh-title">\u{1F333} ${this._config.title || "Gehoelze"}</div>
+        <div class="gh-list-container"><div class="gh-loading">Lade\u2026</div></div>
+      </ha-card>
+
+      <div class="gh-modal-backdrop" id="gh-modal-backdrop">
+        <div class="gh-modal">
+          <div class="gh-modal-title" id="gh-modal-title">\u{1F333} Geh\u00f6lz hinzuf\u00fcgen</div>
+          <div class="gh-form-grid">
+            <div class="gh-form-full"><label>Name</label><input type="text" id="gh-name" placeholder="z.B. Apfelbaum Boskoop"></div>
+            <div class="gh-form-full">
+              <label>Pflanze (optional, f\u00fcr Emoji/Familie)</label>
+              <select id="gh-plant"><option value="">\u2013 keine \u2013</option></select>
+            </div>
+            <div><label>Pflanzjahr</label><input type="number" id="gh-year"></div>
+            <div class="gh-form-full"><label>Standort-Notiz (optional)</label><input type="text" id="gh-location" placeholder="z.B. Ecke hinterer Zaun"></div>
+          </div>
+          <div class="gh-modal-actions">
+            <button class="gh-btn gh-btn-cancel" id="gh-cancel">Abbrechen</button>
+            <button class="gh-btn gh-btn-remove" id="gh-remove" style="display:none">Entfernt markieren</button>
+            <button class="gh-btn gh-btn-save" id="gh-save">Speichern</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this._root.getElementById("gh-cancel").onclick = () => this._closeModal();
+    this._root.getElementById("gh-save").onclick = () => this._save();
+    this._root.getElementById("gh-remove").onclick = () => this._markRemoved();
+  }
+
+  _renderList(errorMsg) {
+    const container = this._root.querySelector(".gh-list-container");
+    if (this._loaded === "error") {
+      container.innerHTML = `<div class="gh-error">Fehler beim Laden: ${errorMsg || "unbekannt"}</div>`;
+      return;
+    }
+    if (!this._loaded) {
+      container.innerHTML = `<div class="gh-loading">Lade\u2026</div>`;
+      return;
+    }
+    const year = new Date().getFullYear();
+    const rows = this._items.map(item => {
+      const alter = year - item.planted_year + 1;
+      const emoji = item.plant_emoji || "\u{1F333}";
+      const meta = [`seit ${item.planted_year} (${alter} Jahre)`, item.location_note].filter(Boolean).join(" \u00b7 ");
+      return `<div class="gh-row" data-id="${item.id}">
+        <div class="gh-emoji">${emoji}</div>
+        <div class="gh-info">
+          <div class="gh-name">${this._esc(item.name)}</div>
+          <div class="gh-meta">${this._esc(meta)}</div>
+        </div>
+      </div>`;
+    }).join("");
+    const emptyMsg = this._items.length ? "" : `<div class="gh-empty">Noch keine Geh\u00f6lze erfasst.</div>`;
+    container.innerHTML = `${emptyMsg}${rows}<div class="gh-add-row" id="gh-add-row">\u2795 Geh\u00f6lz hinzuf\u00fcgen</div>`;
+
+    container.querySelectorAll(".gh-row").forEach(el => {
+      el.onclick = () => this._openEditModal(parseInt(el.dataset.id, 10));
+    });
+    container.querySelector("#gh-add-row").onclick = () => this._openAddModal();
+  }
+
+  _esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  _fillPlantSelect(selectedPlantId) {
+    const sel = this._root.getElementById("gh-plant");
+    sel.innerHTML = `<option value="">\u2013 keine \u2013</option>` + this._plants.map(p =>
+      `<option value="${p.id}">${p.emoji} ${this._esc(p.name)}</option>`
+    ).join("");
+    if (selectedPlantId) sel.value = String(selectedPlantId);
+  }
+
+  _openAddModal() {
+    this._editingId = null;
+    this._root.getElementById("gh-modal-title").textContent = "\u{1F333} Geh\u00f6lz hinzuf\u00fcgen";
+    this._root.getElementById("gh-name").value = "";
+    this._fillPlantSelect(null);
+    this._root.getElementById("gh-year").value = new Date().getFullYear();
+    this._root.getElementById("gh-location").value = "";
+    this._root.getElementById("gh-remove").style.display = "none";
+    this._root.getElementById("gh-modal-backdrop").classList.add("open");
+  }
+
+  _openEditModal(id) {
+    const item = this._items.find(i => i.id === id);
+    if (!item) return;
+    this._editingId = id;
+    this._root.getElementById("gh-modal-title").textContent = "\u2702\uFE0F " + item.name + " bearbeiten";
+    this._root.getElementById("gh-name").value = item.name;
+    this._fillPlantSelect(item.plant_id);
+    this._root.getElementById("gh-year").value = item.planted_year;
+    this._root.getElementById("gh-location").value = item.location_note || "";
+    this._root.getElementById("gh-remove").style.display = "inline-block";
+    this._root.getElementById("gh-modal-backdrop").classList.add("open");
+  }
+
+  _closeModal() { this._root.getElementById("gh-modal-backdrop").classList.remove("open"); }
+
+  async _save() {
+    const base = this._config.api_base.replace(/\/$/, "");
+    const name = this._root.getElementById("gh-name").value.trim();
+    if (!name) { alert("Bitte Namen eingeben"); return; }
+    const plantSel = this._root.getElementById("gh-plant");
+    const body = {
+      name,
+      plant_id: plantSel.value ? parseInt(plantSel.value, 10) : null,
+      planted_year: parseInt(this._root.getElementById("gh-year").value, 10) || new Date().getFullYear(),
+      location_note: this._root.getElementById("gh-location").value.trim() || null
+    };
+    try {
+      const url = this._editingId ? `${base}/perennials/${this._editingId}` : `${base}/perennials`;
+      const method = this._editingId ? "PATCH" : "POST";
+      const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      this._closeModal();
+      await this._loadData();
+    } catch (e) {
+      alert("Fehler beim Speichern: " + e.message);
+    }
+  }
+
+  async _markRemoved() {
+    if (!this._editingId) return;
+    if (!confirm("Dieses Gehoelz als entfernt markieren?")) return;
+    const base = this._config.api_base.replace(/\/$/, "");
+    const item = this._items.find(i => i.id === this._editingId);
+    const body = {
+      name: item.name,
+      plant_id: item.plant_id,
+      planted_year: item.planted_year,
+      location_note: item.location_note,
+      removed_year: new Date().getFullYear()
+    };
+    try {
+      const r = await fetch(`${base}/perennials/${this._editingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      this._closeModal();
+      await this._loadData();
+    } catch (e) {
+      alert("Fehler: " + e.message);
+    }
+  }
+}
+
+customElements.define("gartentagebuch-gehoelze-card", GartentagebuchGehoelzeCard);
+
+class GartentagebuchGehoelzeCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _schema() {
+    return [
+      { name: "title", selector: { text: {} } },
+      { name: "api_base", selector: { text: {} } }
+    ];
+  }
+
+  _labels(name) {
+    const map = {
+      title: "Titel",
+      api_base: "API Basis-URL (z.B. http://192.168.178.114:3002/garten/api)"
+    };
+    return map[name] || name;
+  }
+
+  _render() {
+    if (!this._config || !this._hass) return;
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      this._form.addEventListener("value-changed", (ev) => {
+        ev.stopPropagation();
+        this._config = ev.detail.value;
+        this.dispatchEvent(new CustomEvent("config-changed", {
+          detail: { config: this._config },
+          bubbles: true,
+          composed: true
+        }));
+      });
+      this.innerHTML = "";
+      this.appendChild(this._form);
+    }
+    this._form.hass = this._hass;
+    this._form.data = this._config;
+    this._form.schema = this._schema();
+    this._form.computeLabel = (s) => this._labels(s.name);
+  }
+}
+
+customElements.define("gartentagebuch-gehoelze-card-editor", GartentagebuchGehoelzeCardEditor);
+
+window.customCards.push({
+  type: "gartentagebuch-gehoelze-card",
+  name: "Gartentagebuch Gehoelze",
+  description: "Liste der Gehoelze/Baeume/Buesche mit Alter und Standort, Hinzufuegen/Bearbeiten/Entfernen"
+});
+
 // F\u00fcr die Karten-Auswahl in der HA-UI (optional, aber nett)
 window.customCards = window.customCards || [];
 window.customCards.push({
