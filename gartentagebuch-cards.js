@@ -429,8 +429,6 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
         .gh-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
         .gh-btn-cancel { background:none; border:1.5px solid var(--gh-cream-dark); color:var(--gh-text-muted-fixed); }
         .gh-btn-save { flex:1; background:linear-gradient(135deg,var(--gh-green-mid),var(--gh-green-deep)); color:#fff; }
-        .gh-btn-remove { background:none; border:1.5px solid var(--gh-red); color:var(--gh-red); }
-        .gh-btn-harvest-open { background:none; border:1.5px solid var(--gh-green-mid); color:var(--gh-green-deep); }
 
         /* Ernte-Modal: bewusst dunkles Design */
         .gh-dark-modal { background:#1e1e1e; border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border:1px solid #333; }
@@ -454,7 +452,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
 
       <div class="gh-modal-backdrop" id="gh-modal-backdrop">
         <div class="gh-modal">
-          <div class="gh-modal-title" id="gh-modal-title">\u{1F333} Geh\u00f6lz hinzuf\u00fcgen</div>
+          <div class="gh-modal-title">\u{1F333} Geh\u00f6lz hinzuf\u00fcgen</div>
           <div class="gh-form-grid">
             <div class="gh-form-full"><label>Name</label><input type="text" id="gh-name" placeholder="z.B. Apfelbaum Boskoop"></div>
             <div class="gh-form-full">
@@ -466,8 +464,6 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
           </div>
           <div class="gh-modal-actions">
             <button class="gh-btn gh-btn-cancel" id="gh-cancel">Abbrechen</button>
-            <button class="gh-btn gh-btn-harvest-open" id="gh-harvest-open" style="display:none">\u{1F33E} Ernte</button>
-            <button class="gh-btn gh-btn-remove" id="gh-remove" style="display:none">Entfernt markieren</button>
             <button class="gh-btn gh-btn-save" id="gh-save">Speichern</button>
           </div>
         </div>
@@ -495,10 +491,8 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
       </div>
     `;
 
-    this._root.getElementById("gh-cancel").onclick = () => this._closeModal();
+    this._root.getElementById("gh-cancel").onclick = () => this._closeAddModal();
     this._root.getElementById("gh-save").onclick = () => this._save();
-    this._root.getElementById("gh-remove").onclick = () => this._markRemoved();
-    this._root.getElementById("gh-harvest-open").onclick = () => this._openHarvestModal();
     this._root.getElementById("gh-h-cancel").onclick = () => this._closeHarvestModal();
     this._root.getElementById("gh-h-teil").onclick = () => this._saveHarvest(false);
     this._root.getElementById("gh-h-roden").onclick = () => this._saveHarvest(true);
@@ -531,7 +525,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
     container.innerHTML = `${emptyMsg}${rows}<div class="gh-add-row" id="gh-add-row">\u2795 Geh\u00f6lz hinzuf\u00fcgen</div>`;
 
     container.querySelectorAll(".gh-row").forEach(el => {
-      el.onclick = () => this._openEditModal(parseInt(el.dataset.id, 10));
+      el.onclick = () => this._openHarvestModal(parseInt(el.dataset.id, 10));
     });
     container.querySelector("#gh-add-row").onclick = () => this._openAddModal();
   }
@@ -547,38 +541,19 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   }
 
   _openAddModal() {
-    this._editingId = null;
-    this._root.getElementById("gh-modal-title").textContent = "\u{1F333} Geh\u00f6lz hinzuf\u00fcgen";
     this._root.getElementById("gh-name").value = "";
     this._fillPlantSelect(null);
     this._root.getElementById("gh-year").value = new Date().getFullYear();
     this._root.getElementById("gh-location").value = "";
-    this._root.getElementById("gh-remove").style.display = "none";
-    this._root.getElementById("gh-harvest-open").style.display = "none";
     this._root.getElementById("gh-modal-backdrop").classList.add("open");
   }
 
-  _openEditModal(id) {
+  _closeAddModal() { this._root.getElementById("gh-modal-backdrop").classList.remove("open"); }
+
+  _openHarvestModal(id) {
     const item = this._items.find(i => i.id === id);
     if (!item) return;
-    this._editingId = id;
-    this._root.getElementById("gh-modal-title").textContent = "\u2702\uFE0F " + item.name + " bearbeiten";
-    this._root.getElementById("gh-name").value = item.name;
-    this._fillPlantSelect(item.plant_id);
-    this._root.getElementById("gh-year").value = item.planted_year;
-    this._root.getElementById("gh-location").value = item.location_note || "";
-    this._root.getElementById("gh-remove").style.display = "inline-block";
-    this._root.getElementById("gh-harvest-open").style.display = "inline-block";
-    this._root.getElementById("gh-modal-backdrop").classList.add("open");
-  }
-
-  _closeModal() { this._root.getElementById("gh-modal-backdrop").classList.remove("open"); }
-
-  _openHarvestModal() {
-    if (!this._editingId) return;
-    const item = this._items.find(i => i.id === this._editingId);
-    if (!item) return;
-    this._root.getElementById("gh-modal-backdrop").classList.remove("open");
+    this._harvestItemId = id;
     this._root.getElementById("gh-harvest-sub").textContent = `${item.plant_emoji || "\u{1F333}"} ${item.name}`;
     this._root.getElementById("gh-h-date").value = this._todayStr();
     this._root.getElementById("gh-h-amount").value = "";
@@ -592,8 +567,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   _todayStr() { return new Date().toISOString().split("T")[0]; }
 
   async _saveHarvest(roden) {
-    if (!this._editingId) return;
-    const item = this._items.find(i => i.id === this._editingId);
+    const item = this._items.find(i => i.id === this._harvestItemId);
     if (!item) return;
     const base = this._config.api_base.replace(/\/$/, "");
     const amount = this._root.getElementById("gh-h-amount").value;
@@ -640,42 +614,15 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
       location_note: this._root.getElementById("gh-location").value.trim() || null
     };
     try {
-      const url = this._editingId ? `${base}/perennials/${this._editingId}` : `${base}/perennials`;
-      const method = this._editingId ? "PATCH" : "POST";
-      const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(`${base}/perennials`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
-      this._closeModal();
+      this._closeAddModal();
       await this._loadData();
     } catch (e) {
       alert("Fehler beim Speichern: " + e.message);
     }
   }
-
-  async _markRemoved() {
-    if (!this._editingId) return;
-    if (!confirm("Dieses Gehoelz als entfernt markieren?")) return;
-    const base = this._config.api_base.replace(/\/$/, "");
-    const item = this._items.find(i => i.id === this._editingId);
-    const body = {
-      name: item.name,
-      plant_id: item.plant_id,
-      planted_year: item.planted_year,
-      location_note: item.location_note,
-      removed_year: new Date().getFullYear()
-    };
-    try {
-      const r = await fetch(`${base}/perennials/${this._editingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!r.ok) throw new Error(await r.text());
-      this._closeModal();
-      await this._loadData();
-    } catch (e) {
-      alert("Fehler: " + e.message);
-    }
-  }
 }
-
-customElements.define("gartentagebuch-gehoelze-card", GartentagebuchGehoelzeCard);
-
 class GartentagebuchGehoelzeCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = { ...config };
