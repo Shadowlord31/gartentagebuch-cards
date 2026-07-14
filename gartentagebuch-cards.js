@@ -623,6 +623,9 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
     }
   }
 }
+
+customElements.define("gartentagebuch-gehoelze-card", GartentagebuchGehoelzeCard);
+
 class GartentagebuchGehoelzeCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = { ...config };
