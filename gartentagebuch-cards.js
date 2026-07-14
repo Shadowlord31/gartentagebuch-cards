@@ -430,6 +430,22 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
         .gh-btn-cancel { background:none; border:1.5px solid var(--gh-cream-dark); color:var(--gh-text-muted-fixed); }
         .gh-btn-save { flex:1; background:linear-gradient(135deg,var(--gh-green-mid),var(--gh-green-deep)); color:#fff; }
         .gh-btn-remove { background:none; border:1.5px solid var(--gh-red); color:var(--gh-red); }
+        .gh-btn-harvest-open { background:none; border:1.5px solid var(--gh-green-mid); color:var(--gh-green-deep); }
+
+        /* Ernte-Modal: bewusst dunkles Design */
+        .gh-dark-modal { background:#1e1e1e; border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border:1px solid #333; }
+        .gh-dark-modal-title { font-size:1.15rem; font-weight:700; color:#f2f2f2; margin-bottom:6px; }
+        .gh-dark-modal-sub { font-size:.88rem; color:#a8a8a8; margin-bottom:16px; }
+        .gh-dark-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .gh-dark-form-full { grid-column: span 2; }
+        .gh-dark-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#9a9a9a; margin-bottom:4px; }
+        .gh-dark-form-grid input, .gh-dark-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #3a3a3a; border-radius:8px; font-size:.92rem; color:#f2f2f2; background:#2a2a2a; }
+        .gh-dark-form-grid input::placeholder { color:#777; }
+        .gh-dark-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+        .gh-dark-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
+        .gh-dark-btn-cancel { background:none; border:1.5px solid #3a3a3a; color:#c0c0c0; }
+        .gh-dark-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,#e8a020); color:#3a2600; }
+        .gh-dark-btn-roden { flex:1; background:linear-gradient(135deg,#c0392b,#7a1f16); color:#fff; }
       </style>
       <ha-card>
         <div class="gh-title">\u{1F333} ${this._config.title || "Gehoelze"}</div>
@@ -450,8 +466,30 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
           </div>
           <div class="gh-modal-actions">
             <button class="gh-btn gh-btn-cancel" id="gh-cancel">Abbrechen</button>
+            <button class="gh-btn gh-btn-harvest-open" id="gh-harvest-open" style="display:none">\u{1F33E} Ernte</button>
             <button class="gh-btn gh-btn-remove" id="gh-remove" style="display:none">Entfernt markieren</button>
             <button class="gh-btn gh-btn-save" id="gh-save">Speichern</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="gh-modal-backdrop" id="gh-harvest-backdrop">
+        <div class="gh-dark-modal">
+          <div class="gh-dark-modal-title">\u{1F33E} Ernte eintragen</div>
+          <div class="gh-dark-modal-sub" id="gh-harvest-sub"></div>
+          <div class="gh-dark-form-grid">
+            <div><label>Datum</label><input type="date" id="gh-h-date"></div>
+            <div><label>Menge (optional)</label><input type="number" step="0.001" min="0" placeholder="z.B. 1.5" id="gh-h-amount"></div>
+            <div>
+              <label>Einheit</label>
+              <select id="gh-h-unit"><option value="kg">kg</option><option value="g">g</option><option value="St\u00fcck">St\u00fcck</option></select>
+            </div>
+            <div class="gh-dark-form-full"><label>Notiz (optional)</label><input type="text" placeholder="z.B. erste Ernte, sehr s\u00fc\u00df\u2026" id="gh-h-note"></div>
+          </div>
+          <div class="gh-dark-modal-actions">
+            <button class="gh-dark-btn gh-dark-btn-cancel" id="gh-h-cancel">Abbrechen</button>
+            <button class="gh-dark-btn gh-dark-btn-teil" id="gh-h-teil">\u{1F33E} Teilernte</button>
+            <button class="gh-dark-btn gh-dark-btn-roden" id="gh-h-roden">\u{1FA93} Roden</button>
           </div>
         </div>
       </div>
@@ -460,6 +498,10 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
     this._root.getElementById("gh-cancel").onclick = () => this._closeModal();
     this._root.getElementById("gh-save").onclick = () => this._save();
     this._root.getElementById("gh-remove").onclick = () => this._markRemoved();
+    this._root.getElementById("gh-harvest-open").onclick = () => this._openHarvestModal();
+    this._root.getElementById("gh-h-cancel").onclick = () => this._closeHarvestModal();
+    this._root.getElementById("gh-h-teil").onclick = () => this._saveHarvest(false);
+    this._root.getElementById("gh-h-roden").onclick = () => this._saveHarvest(true);
   }
 
   _renderList(errorMsg) {
@@ -512,6 +554,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
     this._root.getElementById("gh-year").value = new Date().getFullYear();
     this._root.getElementById("gh-location").value = "";
     this._root.getElementById("gh-remove").style.display = "none";
+    this._root.getElementById("gh-harvest-open").style.display = "none";
     this._root.getElementById("gh-modal-backdrop").classList.add("open");
   }
 
@@ -525,10 +568,65 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
     this._root.getElementById("gh-year").value = item.planted_year;
     this._root.getElementById("gh-location").value = item.location_note || "";
     this._root.getElementById("gh-remove").style.display = "inline-block";
+    this._root.getElementById("gh-harvest-open").style.display = "inline-block";
     this._root.getElementById("gh-modal-backdrop").classList.add("open");
   }
 
   _closeModal() { this._root.getElementById("gh-modal-backdrop").classList.remove("open"); }
+
+  _openHarvestModal() {
+    if (!this._editingId) return;
+    const item = this._items.find(i => i.id === this._editingId);
+    if (!item) return;
+    this._root.getElementById("gh-modal-backdrop").classList.remove("open");
+    this._root.getElementById("gh-harvest-sub").textContent = `${item.plant_emoji || "\u{1F333}"} ${item.name}`;
+    this._root.getElementById("gh-h-date").value = this._todayStr();
+    this._root.getElementById("gh-h-amount").value = "";
+    this._root.getElementById("gh-h-unit").value = "kg";
+    this._root.getElementById("gh-h-note").value = "";
+    this._root.getElementById("gh-harvest-backdrop").classList.add("open");
+  }
+
+  _closeHarvestModal() { this._root.getElementById("gh-harvest-backdrop").classList.remove("open"); }
+
+  _todayStr() { return new Date().toISOString().split("T")[0]; }
+
+  async _saveHarvest(roden) {
+    if (!this._editingId) return;
+    const item = this._items.find(i => i.id === this._editingId);
+    if (!item) return;
+    const base = this._config.api_base.replace(/\/$/, "");
+    const amount = this._root.getElementById("gh-h-amount").value;
+    const body = {
+      id: Date.now(),
+      emoji: item.plant_emoji || "\u{1F333}",
+      plant: item.name,
+      date: this._root.getElementById("gh-h-date").value,
+      cat: "harvest",
+      plant_id: item.plant_id || null,
+      perennial_id: item.id,
+      description: this._root.getElementById("gh-h-note").value || (roden ? "Gerodet" : ""),
+      harvest_amount: amount ? parseFloat(amount) : null,
+      harvest_unit: this._root.getElementById("gh-h-unit").value,
+      harvest_final: !!roden
+    };
+    try {
+      const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      if (roden) {
+        const patchBody = {
+          name: item.name, plant_id: item.plant_id, planted_year: item.planted_year,
+          location_note: item.location_note, removed_year: new Date().getFullYear()
+        };
+        const r2 = await fetch(`${base}/perennials/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patchBody) });
+        if (!r2.ok) throw new Error(await r2.text());
+      }
+      this._closeHarvestModal();
+      await this._loadData();
+    } catch (e) {
+      alert("Fehler beim Speichern: " + e.message);
+    }
+  }
 
   async _save() {
     const base = this._config.api_base.replace(/\/$/, "");
