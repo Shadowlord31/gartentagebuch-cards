@@ -4,7 +4,7 @@
 
 class GartentagebuchFelderCard extends HTMLElement {
   setConfig(config) {
-    if (!config.api_base && !config.addon_slug) throw new Error("api_base oder addon_slug ist erforderlich");
+    if (!config.addon_slug) throw new Error("addon_slug ist erforderlich");
     this._config = config;
     this.setAttribute("data-theme", config.design === "dark" ? "dark" : "light");
     this._beds = [];
@@ -28,22 +28,19 @@ class GartentagebuchFelderCard extends HTMLElement {
   }
 
   async _base() {
-    if (this._config.api_base) return this._config.api_base.replace(/\/$/, "");
-    if (this._config.addon_slug) {
-      if (!this._ingressBase) {
-        if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
-        const raw = await this._hass.connection.sendMessagePromise({
-          type: "supervisor/api",
-          endpoint: `/addons/${this._config.addon_slug}/info`,
-          method: "get"
-        });
-        const data = raw && raw.data ? raw.data : raw;
-        if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
-        this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
-      }
-      return this._ingressBase;
+    if (!this._config.addon_slug) throw new Error("addon_slug ist nicht konfiguriert");
+    if (!this._ingressBase) {
+      if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
+      const raw = await this._hass.connection.sendMessagePromise({
+        type: "supervisor/api",
+        endpoint: `/addons/${this._config.addon_slug}/info`,
+        method: "get"
+      });
+      const data = raw && raw.data ? raw.data : raw;
+      if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
+      this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
     }
-    throw new Error("Weder api_base noch addon_slug konfiguriert");
+    return this._ingressBase;
   }
 
   getCardSize() { return 4; }
@@ -53,7 +50,7 @@ class GartentagebuchFelderCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { title: "Garten", api_base: "", addon_slug: "", design: "light" };
+    return { title: "Garten", addon_slug: "", design: "light" };
   }
 
   async _loadData() {
@@ -469,7 +466,6 @@ class GartentagebuchFelderCardEditor extends HTMLElement {
   _schema() {
     return [
       { name: "title", selector: { text: {} } },
-      { name: "api_base", selector: { text: {} } },
       { name: "addon_slug", selector: { text: {} } },
       { name: "design", selector: { select: { mode: "dropdown", options: [
         { value: "light", label: "Hell" },
@@ -482,8 +478,7 @@ class GartentagebuchFelderCardEditor extends HTMLElement {
   _labels(name) {
     const map = {
       title: "Titel",
-      api_base: "API Basis-URL (leer lassen, wenn addon_slug genutzt wird)",
-      addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal) - alternative zu api_base fuer das HA Add-on",
+      addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal)",
       design: "Design",
       standort_id: "Standort-ID (optional, nur einen Standort anzeigen)"
     };
@@ -517,7 +512,7 @@ customElements.define("gartentagebuch-felder-card-editor", GartentagebuchFelderC
 
 class GartentagebuchGehoelzeCard extends HTMLElement {
   setConfig(config) {
-    if (!config.api_base && !config.addon_slug) throw new Error("api_base oder addon_slug ist erforderlich");
+    if (!config.addon_slug) throw new Error("addon_slug ist erforderlich");
     this._config = config;
     this.setAttribute("data-theme", config.design === "dark" ? "dark" : "light");
     this._items = [];
@@ -540,22 +535,19 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   }
 
   async _base() {
-    if (this._config.api_base) return this._config.api_base.replace(/\/$/, "");
-    if (this._config.addon_slug) {
-      if (!this._ingressBase) {
-        if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
-        const raw = await this._hass.connection.sendMessagePromise({
-          type: "supervisor/api",
-          endpoint: `/addons/${this._config.addon_slug}/info`,
-          method: "get"
-        });
-        const data = raw && raw.data ? raw.data : raw;
-        if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
-        this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
-      }
-      return this._ingressBase;
+    if (!this._config.addon_slug) throw new Error("addon_slug ist nicht konfiguriert");
+    if (!this._ingressBase) {
+      if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
+      const raw = await this._hass.connection.sendMessagePromise({
+        type: "supervisor/api",
+        endpoint: `/addons/${this._config.addon_slug}/info`,
+        method: "get"
+      });
+      const data = raw && raw.data ? raw.data : raw;
+      if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
+      this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
     }
-    throw new Error("Weder api_base noch addon_slug konfiguriert");
+    return this._ingressBase;
   }
 
   getCardSize() { return 3; }
@@ -565,7 +557,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { title: "Gehoelze", api_base: "", addon_slug: "", design: "light" };
+    return { title: "Gehoelze", addon_slug: "", design: "light" };
   }
 
   async _loadData() {
@@ -824,7 +816,6 @@ class GartentagebuchGehoelzeCardEditor extends HTMLElement {
   _schema() {
     return [
       { name: "title", selector: { text: {} } },
-      { name: "api_base", selector: { text: {} } },
       { name: "addon_slug", selector: { text: {} } },
       { name: "design", selector: { select: { mode: "dropdown", options: [
         { value: "light", label: "Hell" },
@@ -836,8 +827,7 @@ class GartentagebuchGehoelzeCardEditor extends HTMLElement {
   _labels(name) {
     const map = {
       title: "Titel",
-      api_base: "API Basis-URL (leer lassen, wenn addon_slug genutzt wird)",
-      addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal) - alternative zu api_base fuer das HA Add-on",
+      addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal)",
       design: "Design"
     };
     return map[name] || name;
@@ -870,7 +860,7 @@ customElements.define("gartentagebuch-gehoelze-card-editor", GartentagebuchGehoe
 
 class GartentagebuchUebersichtCard extends HTMLElement {
   setConfig(config) {
-    if (!config.api_base && !config.addon_slug) throw new Error("api_base oder addon_slug ist erforderlich");
+    if (!config.addon_slug) throw new Error("addon_slug ist erforderlich");
     this._config = config;
     this.setAttribute("data-theme", config.design === "dark" ? "dark" : "light");
     this._loaded = false;
@@ -891,22 +881,19 @@ class GartentagebuchUebersichtCard extends HTMLElement {
   }
 
   async _base() {
-    if (this._config.api_base) return this._config.api_base.replace(/\/$/, "");
-    if (this._config.addon_slug) {
-      if (!this._ingressBase) {
-        if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
-        const raw = await this._hass.connection.sendMessagePromise({
-          type: "supervisor/api",
-          endpoint: `/addons/${this._config.addon_slug}/info`,
-          method: "get"
-        });
-        const data = raw && raw.data ? raw.data : raw;
-        if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
-        this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
-      }
-      return this._ingressBase;
+    if (!this._config.addon_slug) throw new Error("addon_slug ist nicht konfiguriert");
+    if (!this._ingressBase) {
+      if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
+      const raw = await this._hass.connection.sendMessagePromise({
+        type: "supervisor/api",
+        endpoint: `/addons/${this._config.addon_slug}/info`,
+        method: "get"
+      });
+      const data = raw && raw.data ? raw.data : raw;
+      if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
+      this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
     }
-    throw new Error("Weder api_base noch addon_slug konfiguriert");
+    return this._ingressBase;
   }
 
   getCardSize() { return 2; }
@@ -916,7 +903,7 @@ class GartentagebuchUebersichtCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { title: "Garten \u00dcbersicht", api_base: "", addon_slug: "", design: "light" };
+    return { title: "Garten \u00dcbersicht", addon_slug: "", design: "light" };
   }
 
   async _loadData() {
@@ -1052,7 +1039,6 @@ class GartentagebuchUebersichtCardEditor extends HTMLElement {
   _schema() {
     return [
       { name: "title", selector: { text: {} } },
-      { name: "api_base", selector: { text: {} } },
       { name: "addon_slug", selector: { text: {} } },
       { name: "design", selector: { select: { mode: "dropdown", options: [
         { value: "light", label: "Hell" },
@@ -1064,8 +1050,7 @@ class GartentagebuchUebersichtCardEditor extends HTMLElement {
   _labels(name) {
     const map = {
       title: "Titel",
-      api_base: "API Basis-URL (leer lassen, wenn addon_slug genutzt wird)",
-      addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal) - alternative zu api_base fuer das HA Add-on",
+      addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal)",
       design: "Design"
     };
     return map[name] || name;
@@ -1098,7 +1083,7 @@ customElements.define("gartentagebuch-uebersicht-card-editor", GartentagebuchUeb
 
 class GartentagebuchKostenCard extends HTMLElement {
   setConfig(config) {
-    if (!config.api_base && !config.addon_slug) throw new Error("api_base oder addon_slug ist erforderlich");
+    if (!config.addon_slug) throw new Error("addon_slug ist erforderlich");
     this._config = config;
     this.setAttribute("data-theme", config.design === "dark" ? "dark" : "light");
     this._costs = [];
@@ -1121,22 +1106,19 @@ class GartentagebuchKostenCard extends HTMLElement {
   }
 
   async _base() {
-    if (this._config.api_base) return this._config.api_base.replace(/\/$/, "");
-    if (this._config.addon_slug) {
-      if (!this._ingressBase) {
-        if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
-        const raw = await this._hass.connection.sendMessagePromise({
-          type: "supervisor/api",
-          endpoint: `/addons/${this._config.addon_slug}/info`,
-          method: "get"
-        });
-        const data = raw && raw.data ? raw.data : raw;
-        if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
-        this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
-      }
-      return this._ingressBase;
+    if (!this._config.addon_slug) throw new Error("addon_slug ist nicht konfiguriert");
+    if (!this._ingressBase) {
+      if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
+      const raw = await this._hass.connection.sendMessagePromise({
+        type: "supervisor/api",
+        endpoint: `/addons/${this._config.addon_slug}/info`,
+        method: "get"
+      });
+      const data = raw && raw.data ? raw.data : raw;
+      if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
+      this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
     }
-    throw new Error("Weder api_base noch addon_slug konfiguriert");
+    return this._ingressBase;
   }
 
   getCardSize() { return 3; }
@@ -1146,7 +1128,7 @@ class GartentagebuchKostenCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { title: "Garten Kosten", api_base: "", addon_slug: "", design: "light" };
+    return { title: "Garten Kosten", addon_slug: "", design: "light" };
   }
 
   async _loadData() {
@@ -1326,7 +1308,6 @@ class GartentagebuchKostenCardEditor extends HTMLElement {
   _schema() {
     return [
       { name: "title", selector: { text: {} } },
-      { name: "api_base", selector: { text: {} } },
       { name: "addon_slug", selector: { text: {} } },
       { name: "design", selector: { select: { mode: "dropdown", options: [
         { value: "light", label: "Hell" },
@@ -1338,8 +1319,7 @@ class GartentagebuchKostenCardEditor extends HTMLElement {
   _labels(name) {
     const map = {
       title: "Titel",
-      api_base: "API Basis-URL (leer lassen, wenn addon_slug genutzt wird)",
-      addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal) - alternative zu api_base fuer das HA Add-on",
+      addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal)",
       design: "Design"
     };
     return map[name] || name;
