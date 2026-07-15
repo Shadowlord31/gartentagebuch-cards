@@ -67,7 +67,7 @@ class GartentagebuchFelderCard extends HTMLElement {
       this._renderGrid();
     } catch (e) {
       this._loaded = "error";
-      this._renderGrid(e.message);
+      this._renderGrid((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
   }
 
@@ -573,7 +573,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
       this._renderList();
     } catch (e) {
       this._loaded = "error";
-      this._renderList(e.message);
+      this._renderList((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
   }
 
@@ -948,7 +948,7 @@ class GartentagebuchUebersichtCard extends HTMLElement {
       this._renderStats();
     } catch (e) {
       this._loaded = "error";
-      this._renderStats(e.message);
+      this._renderStats((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
   }
 
@@ -1146,7 +1146,7 @@ class GartentagebuchKostenCard extends HTMLElement {
       this._renderContent();
     } catch (e) {
       this._loaded = "error";
-      this._renderContent(e.message);
+      this._renderContent((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
   }
 
