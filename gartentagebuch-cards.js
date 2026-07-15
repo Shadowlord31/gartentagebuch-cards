@@ -302,7 +302,7 @@ class GartentagebuchFelderCard extends HTMLElement {
     try {
       const plansRes = await fetch(`${base}/plans`);
       const plans = await plansRes.json();
-      const plan = plans.find(p => p.id === planId);
+      const plan = plans.find(p => String(p.id) === String(planId));
       if (!plan) throw new Error("Planung nicht gefunden");
       const r1 = await fetch(`${base}/plans/${planId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done: true }) });
       if (!r1.ok) throw new Error(await r1.text());
@@ -364,7 +364,7 @@ class GartentagebuchFelderCard extends HTMLElement {
       if (roden && this._activePlanId) {
         const plansRes = await fetch(`${base}/plans`);
         const plans = await plansRes.json();
-        const plan = plans.find(p => p.id === this._activePlanId);
+        const plan = plans.find(p => String(p.id) === String(this._activePlanId));
         if (plan) {
           const patchBody = {
             emoji: plan.emoji, plant: plan.plant, month: plan.month, month_to: plan.month_to,
