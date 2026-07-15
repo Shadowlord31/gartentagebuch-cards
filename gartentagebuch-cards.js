@@ -15,10 +15,17 @@ class GartentagebuchFelderCard extends HTMLElement {
       this._root = this.attachShadow({ mode: "open" });
       this._render();
     }
-    this._loadData();
+    this._ingressBase = null;
+    if (this._hass) this._loadData();
   }
 
-  set hass(hass) { this._hass = hass; }
+  set hass(hass) {
+    this._hass = hass;
+    if (!this._initialLoadDone) {
+      this._initialLoadDone = true;
+      this._loadData();
+    }
+  }
 
   async _base() {
     if (this._config.api_base) return this._config.api_base.replace(/\/$/, "");
@@ -516,10 +523,17 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
       this._root = this.attachShadow({ mode: "open" });
       this._render();
     }
-    this._loadData();
+    this._ingressBase = null;
+    if (this._hass) this._loadData();
   }
 
-  set hass(hass) { this._hass = hass; }
+  set hass(hass) {
+    this._hass = hass;
+    if (!this._initialLoadDone) {
+      this._initialLoadDone = true;
+      this._loadData();
+    }
+  }
 
   async _base() {
     if (this._config.api_base) return this._config.api_base.replace(/\/$/, "");
@@ -856,10 +870,17 @@ class GartentagebuchUebersichtCard extends HTMLElement {
       this._root = this.attachShadow({ mode: "open" });
       this._render();
     }
-    this._loadData();
+    this._ingressBase = null;
+    if (this._hass) this._loadData();
   }
 
-  set hass(hass) { this._hass = hass; }
+  set hass(hass) {
+    this._hass = hass;
+    if (!this._initialLoadDone) {
+      this._initialLoadDone = true;
+      this._loadData();
+    }
+  }
 
   async _base() {
     if (this._config.api_base) return this._config.api_base.replace(/\/$/, "");
@@ -1075,10 +1096,17 @@ class GartentagebuchKostenCard extends HTMLElement {
       this._root = this.attachShadow({ mode: "open" });
       this._render();
     }
-    this._loadData();
+    this._ingressBase = null;
+    if (this._hass) this._loadData();
   }
 
-  set hass(hass) { this._hass = hass; }
+  set hass(hass) {
+    this._hass = hass;
+    if (!this._initialLoadDone) {
+      this._initialLoadDone = true;
+      this._loadData();
+    }
+  }
 
   async _base() {
     if (this._config.api_base) return this._config.api_base.replace(/\/$/, "");
