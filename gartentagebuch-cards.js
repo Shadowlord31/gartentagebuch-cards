@@ -840,25 +840,50 @@ class GartentagebuchUebersichtCard extends HTMLElement {
   async _loadData() {
     const base = this._config.api_base.replace(/\/$/, "");
     try {
-      const [occ, perennials] = await Promise.all([
+      const [occ, perennials, entries, costs] = await Promise.all([
         fetch(`${base}/beds/occupancy`).then(r => r.json()),
-        fetch(`${base}/perennials`).then(r => r.json())
+        fetch(`${base}/perennials`).then(r => r.json()),
+        fetch(`${base}/entries`).then(r => r.json()),
+        fetch(`${base}/costs`).then(r => r.json())
       ]);
-      let gepflanzt = 0, dauerpflanzungen = 0;
-      Object.values(occ).forEach(list => {
-        list.forEach(p => {
-          if (p.source === "tagebuch") gepflanzt++;
-          else if (p.source === "dauerhaft") dauerpflanzungen++;
-        });
+
+      const year = new Date().getFullYear();
+      const yearStr = String(year);
+
+      // Gepflanzt: wie im Tagebuch selbst - distinkte Pflanzen (nach plant_id, sonst Name),
+      // die dieses Jahr gepflanzt wurden, unabhaengig vom Beet und ohne Ernte-Filter.
+      const plantGroups = new Set();
+      entries.forEach(e => {
+        if (e.cat === "plant" && new Date(e.date).getFullYear() === year) {
+          plantGroups.add(e.plant_id ? `id_${e.plant_id}` : `name_${e.plant}`);
+        }
       });
+      const gepflanzt = plantGroups.size;
+
+      // Dauerbepflanzung: aktive Dauerbepflanzungen pro Feld (wie im Tagebuch-Tab)
+      let dauerpflanzungen = 0;
+      Object.values(occ).forEach(list => {
+        list.forEach(p => { if (p.source === "dauerhaft") dauerpflanzungen++; });
+      });
+
       const gehoelze = perennials.filter(p => !p.removed_year).length;
-      this._stats = { gepflanzt, dauerpflanzungen, gehoelze };
+
+      // Kosten dieses Jahr, wie im Tagebuch (costs.filter date.startsWith(year))
+      const kosten = costs
+        .filter(c => (c.date || "").startsWith(yearStr))
+        .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+
+      this._stats = { gepflanzt, dauerpflanzungen, gehoelze, kosten, year };
       this._loaded = true;
       this._renderStats();
     } catch (e) {
       this._loaded = "error";
       this._renderStats(e.message);
     }
+  }
+
+  _fmtEuro(v) {
+    return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " \u20ac";
   }
 
   _render() {
@@ -872,10 +897,11 @@ class GartentagebuchUebersichtCard extends HTMLElement {
         }
         ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; background:var(--gu-bg); color:var(--gu-text); }
         .gu-title { font-size:1.15rem; font-weight:700; color:var(--gu-accent); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-        .gu-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+        .gu-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(80px,1fr)); gap:10px; }
         .gu-stat { background:var(--gu-bg-alt); border-radius:12px; padding:14px 8px; text-align:center; }
         .gu-stat-emoji { font-size:1.6rem; }
         .gu-stat-number { font-size:1.6rem; font-weight:700; color:var(--gu-text); margin-top:4px; }
+        .gu-stat-number-money { font-size:1.1rem; }
         .gu-stat-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--gu-text-muted); margin-top:2px; }
         .gu-loading, .gu-error { color:var(--gu-text-muted); font-size:.9rem; padding:8px 0; }
         .gu-error { color:#e05d4a; }
@@ -914,6 +940,11 @@ class GartentagebuchUebersichtCard extends HTMLElement {
           <div class="gu-stat-emoji">\u{1F333}</div>
           <div class="gu-stat-number">${s.gehoelze}</div>
           <div class="gu-stat-label">Geh\u00f6lze</div>
+        </div>
+        <div class="gu-stat">
+          <div class="gu-stat-emoji">\u{1F4B0}</div>
+          <div class="gu-stat-number gu-stat-number-money">${this._fmtEuro(s.kosten)}</div>
+          <div class="gu-stat-label">Kosten ${s.year}</div>
         </div>
       </div>
     `;
