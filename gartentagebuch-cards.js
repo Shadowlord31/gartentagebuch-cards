@@ -812,6 +812,178 @@ class GartentagebuchGehoelzeCardEditor extends HTMLElement {
 
 customElements.define("gartentagebuch-gehoelze-card-editor", GartentagebuchGehoelzeCardEditor);
 
+class GartentagebuchUebersichtCard extends HTMLElement {
+  setConfig(config) {
+    if (!config.api_base) throw new Error("api_base ist erforderlich, z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api");
+    this._config = config;
+    this.setAttribute("data-theme", config.design === "dark" ? "dark" : "light");
+    this._loaded = false;
+    if (!this._root) {
+      this._root = this.attachShadow({ mode: "open" });
+      this._render();
+    }
+    this._loadData();
+  }
+
+  set hass(hass) { this._hass = hass; }
+
+  getCardSize() { return 2; }
+
+  static getConfigElement() {
+    return document.createElement("gartentagebuch-uebersicht-card-editor");
+  }
+
+  static getStubConfig() {
+    return { title: "Garten \u00dcbersicht", api_base: "", design: "light" };
+  }
+
+  async _loadData() {
+    const base = this._config.api_base.replace(/\/$/, "");
+    try {
+      const [occ, perennials] = await Promise.all([
+        fetch(`${base}/beds/occupancy`).then(r => r.json()),
+        fetch(`${base}/perennials`).then(r => r.json())
+      ]);
+      let gepflanzt = 0, dauerpflanzungen = 0;
+      Object.values(occ).forEach(list => {
+        list.forEach(p => {
+          if (p.source === "tagebuch") gepflanzt++;
+          else if (p.source === "dauerhaft") dauerpflanzungen++;
+        });
+      });
+      const gehoelze = perennials.filter(p => !p.removed_year).length;
+      this._stats = { gepflanzt, dauerpflanzungen, gehoelze };
+      this._loaded = true;
+      this._renderStats();
+    } catch (e) {
+      this._loaded = "error";
+      this._renderStats(e.message);
+    }
+  }
+
+  _render() {
+    this._root.innerHTML = `
+      <style>
+        :host([data-theme="light"]) {
+          --gu-bg:#f9f5ec; --gu-bg-alt:#ede8d8; --gu-text:#2a2a1e; --gu-text-muted:#6b6b50; --gu-accent:#2d5016;
+        }
+        :host([data-theme="dark"]) {
+          --gu-bg:#262626; --gu-bg-alt:#3a3a3a; --gu-text:#f2f2f2; --gu-text-muted:#a8a8a8; --gu-accent:#8fce6a;
+        }
+        ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; background:var(--gu-bg); color:var(--gu-text); }
+        .gu-title { font-size:1.15rem; font-weight:700; color:var(--gu-accent); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .gu-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+        .gu-stat { background:var(--gu-bg-alt); border-radius:12px; padding:14px 8px; text-align:center; }
+        .gu-stat-emoji { font-size:1.6rem; }
+        .gu-stat-number { font-size:1.6rem; font-weight:700; color:var(--gu-text); margin-top:4px; }
+        .gu-stat-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--gu-text-muted); margin-top:2px; }
+        .gu-loading, .gu-error { color:var(--gu-text-muted); font-size:.9rem; padding:8px 0; }
+        .gu-error { color:#e05d4a; }
+      </style>
+      <ha-card>
+        <div class="gu-title">\u{1F4CA} ${this._config.title || "Garten \u00dcbersicht"}</div>
+        <div class="gu-stats-container"><div class="gu-loading">Lade\u2026</div></div>
+      </ha-card>
+    `;
+  }
+
+  _renderStats(errorMsg) {
+    const container = this._root.querySelector(".gu-stats-container");
+    if (this._loaded === "error") {
+      container.innerHTML = `<div class="gu-error">Fehler beim Laden: ${errorMsg || "unbekannt"}</div>`;
+      return;
+    }
+    if (!this._loaded) {
+      container.innerHTML = `<div class="gu-loading">Lade\u2026</div>`;
+      return;
+    }
+    const s = this._stats;
+    container.innerHTML = `
+      <div class="gu-stats">
+        <div class="gu-stat">
+          <div class="gu-stat-emoji">\u{1F331}</div>
+          <div class="gu-stat-number">${s.gepflanzt}</div>
+          <div class="gu-stat-label">Gepflanzt</div>
+        </div>
+        <div class="gu-stat">
+          <div class="gu-stat-emoji">\u{1F33F}</div>
+          <div class="gu-stat-number">${s.dauerpflanzungen}</div>
+          <div class="gu-stat-label">Dauerbepflanzung</div>
+        </div>
+        <div class="gu-stat">
+          <div class="gu-stat-emoji">\u{1F333}</div>
+          <div class="gu-stat-number">${s.gehoelze}</div>
+          <div class="gu-stat-label">Geh\u00f6lze</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+customElements.define("gartentagebuch-uebersicht-card", GartentagebuchUebersichtCard);
+
+class GartentagebuchUebersichtCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _schema() {
+    return [
+      { name: "title", selector: { text: {} } },
+      { name: "api_base", selector: { text: {} } },
+      { name: "design", selector: { select: { mode: "dropdown", options: [
+        { value: "light", label: "Hell" },
+        { value: "dark", label: "Dunkel" }
+      ] } } }
+    ];
+  }
+
+  _labels(name) {
+    const map = {
+      title: "Titel",
+      api_base: "API Basis-URL (z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api)",
+      design: "Design"
+    };
+    return map[name] || name;
+  }
+
+  _render() {
+    if (!this._config || !this._hass) return;
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      this._form.addEventListener("value-changed", (ev) => {
+        ev.stopPropagation();
+        this._config = ev.detail.value;
+        this.dispatchEvent(new CustomEvent("config-changed", {
+          detail: { config: this._config },
+          bubbles: true,
+          composed: true
+        }));
+      });
+      this.innerHTML = "";
+      this.appendChild(this._form);
+    }
+    this._form.hass = this._hass;
+    this._form.data = this._config;
+    this._form.schema = this._schema();
+    this._form.computeLabel = (s) => this._labels(s.name);
+  }
+}
+
+customElements.define("gartentagebuch-uebersicht-card-editor", GartentagebuchUebersichtCardEditor);
+
+window.customCards.push({
+  type: "gartentagebuch-uebersicht-card",
+  name: "Gartentagebuch \u00dcbersicht",
+  description: "Zeigt Anzahl Gepflanzt/Dauerbepflanzung/Gehoelze direkt aus der API (kein MQTT-Sensor noetig)"
+});
+
 window.customCards.push({
   type: "gartentagebuch-gehoelze-card",
   name: "Gartentagebuch Gehoelze",
