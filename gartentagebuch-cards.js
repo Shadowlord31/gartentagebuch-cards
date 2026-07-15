@@ -6,6 +6,7 @@ class GartentagebuchFelderCard extends HTMLElement {
   setConfig(config) {
     if (!config.api_base) throw new Error("api_base ist erforderlich, z.B. https://gartentagebuch.heyder-assistant.de/garten/api");
     this._config = config;
+    this.setAttribute("data-theme", config.design === "dark" ? "dark" : "light");
     this._beds = [];
     this._occupancy = {};
     this._plants = [];
@@ -26,7 +27,7 @@ class GartentagebuchFelderCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { title: "Garten", api_base: "" };
+    return { title: "Garten", api_base: "", design: "light" };
   }
 
   async _loadData() {
@@ -51,60 +52,52 @@ class GartentagebuchFelderCard extends HTMLElement {
   _render() {
     this._root.innerHTML = `
       <style>
-        :host { --gt-green-deep:#2d5016; --gt-green-mid:#4a7c2f; --gt-harvest:#e8a020; --gt-harvest-pale:#fdf0d0;
-                --gt-cream:#f9f5ec; --gt-cream-dark:#ede8d8; --gt-white:#fff;
-                --gt-text-fixed:#2a2a1e; --gt-text-muted-fixed:#6b6b50;
-                --gt-text-adaptive: var(--primary-text-color, #2a2a1e);
-                --gt-text-muted-adaptive: var(--secondary-text-color, #6b6b50);
-                --gt-title-color: var(--primary-text-color, #2d5016); }
-        ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; }
-        .gt-title { font-size:1.15rem; font-weight:700; color:var(--gt-title-color); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        :host([data-theme="light"]) {
+          --gt-bg:#f9f5ec; --gt-modal-bg:#fff; --gt-bg-alt:#ede8d8;
+          --gt-text:#2a2a1e; --gt-text-muted:#6b6b50; --gt-input-bg:#f9f5ec;
+          --gt-accent:#2d5016; --gt-accent-mid:#4a7c2f;
+        }
+        :host([data-theme="dark"]) {
+          --gt-bg:#262626; --gt-modal-bg:#1e1e1e; --gt-bg-alt:#3a3a3a;
+          --gt-text:#f2f2f2; --gt-text-muted:#a8a8a8; --gt-input-bg:#2a2a2a;
+          --gt-accent:#8fce6a; --gt-accent-mid:#6ea852;
+        }
+        :host { --gt-harvest:#e8a020; --gt-harvest-pale:#fdf0d0; }
+        ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; background:var(--gt-bg); color:var(--gt-text); }
+        .gt-title { font-size:1.15rem; font-weight:700; color:var(--gt-accent); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
         .gt-standort { margin-bottom: 18px; }
-        .gt-standort-name { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--gt-text-muted-adaptive); margin-bottom:8px; }
+        .gt-standort-name { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--gt-text-muted); margin-bottom:8px; }
         .gt-felder { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
-        .gt-feld { background:var(--gt-cream); border:1.5px solid var(--gt-cream-dark); border-radius:12px; padding:12px 10px; cursor:pointer; transition:.15s; text-align:center; }
-        .gt-feld:hover { border-color: var(--gt-green-mid); transform: translateY(-1px); }
+        .gt-feld { background:var(--gt-bg); border:1.5px solid var(--gt-bg-alt); border-radius:12px; padding:12px 10px; cursor:pointer; transition:.15s; text-align:center; }
+        .gt-feld:hover { border-color: var(--gt-accent-mid); transform: translateY(-1px); }
         .gt-feld.leer { opacity:.6; }
         .gt-feld.geplant { border-style:dashed; border-color:var(--gt-harvest); }
         .gt-feld-badge { font-size:.68rem; font-weight:700; color:#8a5a00; background:var(--gt-harvest-pale); border-radius:6px; padding:1px 6px; display:inline-block; margin-top:2px; }
-        .gt-feld-badge-dauerhaft { color:var(--gt-green-deep); background:#e8f5d8; }
-        .gt-feld-name { font-size:.72rem; font-weight:700; color:var(--gt-text-muted-fixed); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+        .gt-feld-badge-dauerhaft { color:var(--gt-accent); background:var(--gt-bg-alt); }
+        .gt-feld-name { font-size:.72rem; font-weight:700; color:var(--gt-text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
         .gt-feld-emoji { font-size:1.6rem; }
-        .gt-feld-plant { font-size:.85rem; font-weight:600; color:var(--gt-text-fixed); margin-top:2px; }
-        .gt-feld-empty-label { font-size:.8rem; color:var(--gt-text-muted-fixed); margin-top:2px; }
-        .gt-loading, .gt-error { color:var(--gt-text-muted-adaptive); font-size:.9rem; padding:8px 0; }
-        .gt-error { color:#c0392b; }
+        .gt-feld-plant { font-size:.85rem; font-weight:600; color:var(--gt-text); margin-top:2px; }
+        .gt-feld-empty-label { font-size:.8rem; color:var(--gt-text-muted); margin-top:2px; }
+        .gt-loading, .gt-error { color:var(--gt-text-muted); font-size:.9rem; padding:8px 0; }
+        .gt-error { color:#e05d4a; }
 
         .gt-modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:16px; }
         .gt-modal-backdrop.open { display:flex; }
-        .gt-modal { background:var(--gt-white); border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.3); }
-        .gt-modal-title { font-size:1.15rem; font-weight:700; color:var(--gt-green-deep); margin-bottom:6px; }
-        .gt-modal-sub { font-size:.88rem; color:var(--gt-text-muted-fixed); margin-bottom:16px; }
+        .gt-modal { background:var(--gt-modal-bg); color:var(--gt-text); border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.4); }
+        .gt-modal-title { font-size:1.15rem; font-weight:700; color:var(--gt-accent); margin-bottom:6px; }
+        .gt-modal-sub { font-size:.88rem; color:var(--gt-text-muted); margin-bottom:16px; }
         .gt-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         .gt-form-full { grid-column: span 2; }
-        .gt-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gt-text-muted-fixed); margin-bottom:4px; }
-        .gt-form-grid input, .gt-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gt-cream-dark); border-radius:8px; font-size:.92rem; color:var(--gt-text-fixed); background:var(--gt-cream); }
+        .gt-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gt-text-muted); margin-bottom:4px; }
+        .gt-form-grid input, .gt-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gt-bg-alt); border-radius:8px; font-size:.92rem; color:var(--gt-text); background:var(--gt-input-bg); }
+        .gt-form-grid input::placeholder { color:var(--gt-text-muted); opacity:.7; }
         .gt-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
         .gt-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
-        .gt-btn-cancel { background:none; border:1.5px solid var(--gt-cream-dark); color:var(--gt-text-muted-fixed); }
-        .gt-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,var(--gt-harvest)); color:#5a3a00; }
+        .gt-btn-cancel { background:none; border:1.5px solid var(--gt-bg-alt); color:var(--gt-text-muted); }
+        .gt-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,var(--gt-harvest)); color:#3a2600; }
         .gt-btn-final { flex:1; background:linear-gradient(135deg,#c0392b,#922b21); color:#fff; }
-        .gt-btn-pflanzen { flex:1; background:linear-gradient(135deg,var(--gt-green-mid),var(--gt-green-deep)); color:#fff; }
-
-        /* Dauerbepflanzung-Ernte-Modal: bewusst dunkles Design */
-        .gt-dark-modal { background:#1e1e1e; border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border:1px solid #333; }
-        .gt-dark-modal-title { font-size:1.15rem; font-weight:700; color:#f2f2f2; margin-bottom:6px; }
-        .gt-dark-modal-sub { font-size:.88rem; color:#a8a8a8; margin-bottom:16px; }
-        .gt-dark-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        .gt-dark-form-full { grid-column: span 2; }
-        .gt-dark-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#9a9a9a; margin-bottom:4px; }
-        .gt-dark-form-grid input, .gt-dark-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #3a3a3a; border-radius:8px; font-size:.92rem; color:#f2f2f2; background:#2a2a2a; }
-        .gt-dark-form-grid input::placeholder { color:#777; }
-        .gt-dark-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
-        .gt-dark-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
-        .gt-dark-btn-cancel { background:none; border:1.5px solid #3a3a3a; color:#c0c0c0; }
-        .gt-dark-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,#e8a020); color:#3a2600; }
-        .gt-dark-btn-roden { flex:1; background:linear-gradient(135deg,#c0392b,#7a1f16); color:#fff; }
+        .gt-btn-roden { flex:1; background:linear-gradient(135deg,#c0392b,#7a1f16); color:#fff; }
+        .gt-btn-pflanzen { flex:1; background:linear-gradient(135deg,var(--gt-accent-mid),var(--gt-accent)); color:#fff; }
       </style>
       <ha-card>
         <div class="gt-title">\u{1F33F} ${this._config.title || "Garten"}</div>
@@ -151,22 +144,22 @@ class GartentagebuchFelderCard extends HTMLElement {
       </div>
 
       <div class="gt-modal-backdrop" id="dauerhaft-backdrop">
-        <div class="gt-dark-modal">
-          <div class="gt-dark-modal-title">\u{1F33E} Ernte eintragen</div>
-          <div class="gt-dark-modal-sub" id="dauerhaft-sub"></div>
-          <div class="gt-dark-form-grid">
+        <div class="gt-modal">
+          <div class="gt-modal-title">\u{1F33E} Ernte eintragen</div>
+          <div class="gt-modal-sub" id="dauerhaft-sub"></div>
+          <div class="gt-form-grid">
             <div><label>Datum</label><input type="date" id="dh-date"></div>
             <div><label>Menge (optional)</label><input type="number" step="0.001" min="0" placeholder="z.B. 1.5" id="dh-amount"></div>
             <div>
               <label>Einheit</label>
               <select id="dh-unit"><option value="kg">kg</option><option value="g">g</option><option value="St\u00fcck">St\u00fcck</option></select>
             </div>
-            <div class="gt-dark-form-full"><label>Notiz (optional)</label><input type="text" placeholder="z.B. erste Ernte, sehr s\u00fc\u00df\u2026" id="dh-note"></div>
+            <div class="gt-form-full"><label>Notiz (optional)</label><input type="text" placeholder="z.B. erste Ernte, sehr s\u00fc\u00df\u2026" id="dh-note"></div>
           </div>
-          <div class="gt-dark-modal-actions">
-            <button class="gt-dark-btn gt-dark-btn-cancel" id="dh-cancel">Abbrechen</button>
-            <button class="gt-dark-btn gt-dark-btn-teil" id="dh-teil">\u{1F33E} Teilernte</button>
-            <button class="gt-dark-btn gt-dark-btn-roden" id="dh-roden">\u{1FA93} Roden</button>
+          <div class="gt-modal-actions">
+            <button class="gt-btn gt-btn-cancel" id="dh-cancel">Abbrechen</button>
+            <button class="gt-btn gt-btn-teil" id="dh-teil">\u{1F33E} Teilernte</button>
+            <button class="gt-btn gt-btn-roden" id="dh-roden">\u{1FA93} Roden</button>
           </div>
         </div>
       </div>
@@ -451,6 +444,10 @@ class GartentagebuchFelderCardEditor extends HTMLElement {
     return [
       { name: "title", selector: { text: {} } },
       { name: "api_base", selector: { text: {} } },
+      { name: "design", selector: { select: { mode: "dropdown", options: [
+        { value: "light", label: "Hell" },
+        { value: "dark", label: "Dunkel" }
+      ] } } },
       { name: "standort_id", selector: { number: { mode: "box" } } }
     ];
   }
@@ -459,6 +456,7 @@ class GartentagebuchFelderCardEditor extends HTMLElement {
     const map = {
       title: "Titel",
       api_base: "API Basis-URL (z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api)",
+      design: "Design",
       standort_id: "Standort-ID (optional, nur einen Standort anzeigen)"
     };
     return map[name] || name;
@@ -493,6 +491,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   setConfig(config) {
     if (!config.api_base) throw new Error("api_base ist erforderlich, z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api");
     this._config = config;
+    this.setAttribute("data-theme", config.design === "dark" ? "dark" : "light");
     this._items = [];
     this._plants = [];
     this._loaded = false;
@@ -512,7 +511,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { title: "Gehoelze", api_base: "" };
+    return { title: "Gehoelze", api_base: "", design: "light" };
   }
 
   async _loadData() {
@@ -535,52 +534,46 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   _render() {
     this._root.innerHTML = `
       <style>
-        :host { --gh-green-deep:#2d5016; --gh-green-mid:#4a7c2f; --gh-cream:#f9f5ec; --gh-cream-dark: var(--divider-color, #ede8d8);
-                --gh-text: var(--primary-text-color, #2a2a1e);
-                --gh-text-muted: var(--secondary-text-color, #6b6b50);
-                --gh-text-fixed:#2a2a1e; --gh-text-muted-fixed:#6b6b50;
-                --gh-white:#fff; --gh-red:#c0392b; --gh-title-color: var(--primary-text-color, #2d5016); }
-        ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; }
-        .gh-title { font-size:1.15rem; font-weight:700; color:var(--gh-title-color); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-        .gh-row { display:flex; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid var(--gh-cream-dark); cursor:pointer; }
+        :host([data-theme="light"]) {
+          --gh-bg:#f9f5ec; --gh-modal-bg:#fff; --gh-bg-alt:#ede8d8;
+          --gh-text:#2a2a1e; --gh-text-muted:#6b6b50; --gh-input-bg:#f9f5ec;
+          --gh-accent:#2d5016; --gh-accent-mid:#4a7c2f; --gh-row-hover:#ede8d8;
+        }
+        :host([data-theme="dark"]) {
+          --gh-bg:#262626; --gh-modal-bg:#1e1e1e; --gh-bg-alt:#3a3a3a;
+          --gh-text:#f2f2f2; --gh-text-muted:#a8a8a8; --gh-input-bg:#2a2a2a;
+          --gh-accent:#8fce6a; --gh-accent-mid:#6ea852; --gh-row-hover:#333;
+        }
+        :host { --gh-red:#c0392b; }
+        ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; background:var(--gh-bg); color:var(--gh-text); }
+        .gh-title { font-size:1.15rem; font-weight:700; color:var(--gh-accent); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .gh-row { display:flex; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid var(--gh-bg-alt); cursor:pointer; }
         .gh-row:last-child { border-bottom:none; }
-        .gh-row:hover { background: var(--secondary-background-color, var(--gh-cream)); }
+        .gh-row:hover { background: var(--gh-row-hover); }
         .gh-emoji { font-size:1.5rem; width:2rem; text-align:center; flex-shrink:0; }
         .gh-info { flex:1; min-width:0; }
         .gh-name { font-weight:700; color:var(--gh-text); font-size:.95rem; }
         .gh-meta { font-size:.8rem; color:var(--gh-text-muted); margin-top:2px; }
-        .gh-add-row { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; margin-top:8px; border:1.5px dashed var(--gh-cream-dark); border-radius:10px; cursor:pointer; color:var(--gh-text-muted); font-weight:700; font-size:.88rem; }
-        .gh-add-row:hover { border-color:var(--gh-green-mid); color:var(--gh-green-deep); }
+        .gh-add-row { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; margin-top:8px; border:1.5px dashed var(--gh-bg-alt); border-radius:10px; cursor:pointer; color:var(--gh-text-muted); font-weight:700; font-size:.88rem; }
+        .gh-add-row:hover { border-color:var(--gh-accent-mid); color:var(--gh-accent); }
         .gh-loading, .gh-error, .gh-empty { color:var(--gh-text-muted); font-size:.9rem; padding:8px 0; }
         .gh-error { color:var(--gh-red); }
 
         .gh-modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:16px; }
         .gh-modal-backdrop.open { display:flex; }
-        .gh-modal { background:var(--gh-white); border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.3); }
-        .gh-modal-title { font-size:1.15rem; font-weight:700; color:var(--gh-green-deep); margin-bottom:16px; }
+        .gh-modal { background:var(--gh-modal-bg); color:var(--gh-text); border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.4); }
+        .gh-modal-title { font-size:1.15rem; font-weight:700; color:var(--gh-accent); margin-bottom:16px; }
         .gh-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
         .gh-form-full { grid-column: span 2; }
-        .gh-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gh-text-muted-fixed); margin-bottom:4px; }
-        .gh-form-grid input, .gh-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gh-cream-dark); border-radius:8px; font-size:.92rem; color:var(--gh-text-fixed); background:var(--gh-cream); }
+        .gh-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gh-text-muted); margin-bottom:4px; }
+        .gh-form-grid input, .gh-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gh-bg-alt); border-radius:8px; font-size:.92rem; color:var(--gh-text); background:var(--gh-input-bg); }
+        .gh-form-grid input::placeholder { color:var(--gh-text-muted); opacity:.7; }
         .gh-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
         .gh-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
-        .gh-btn-cancel { background:none; border:1.5px solid var(--gh-cream-dark); color:var(--gh-text-muted-fixed); }
-        .gh-btn-save { flex:1; background:linear-gradient(135deg,var(--gh-green-mid),var(--gh-green-deep)); color:#fff; }
-
-        /* Ernte-Modal: bewusst dunkles Design */
-        .gh-dark-modal { background:#1e1e1e; border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border:1px solid #333; }
-        .gh-dark-modal-title { font-size:1.15rem; font-weight:700; color:#f2f2f2; margin-bottom:6px; }
-        .gh-dark-modal-sub { font-size:.88rem; color:#a8a8a8; margin-bottom:16px; }
-        .gh-dark-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        .gh-dark-form-full { grid-column: span 2; }
-        .gh-dark-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#9a9a9a; margin-bottom:4px; }
-        .gh-dark-form-grid input, .gh-dark-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #3a3a3a; border-radius:8px; font-size:.92rem; color:#f2f2f2; background:#2a2a2a; }
-        .gh-dark-form-grid input::placeholder { color:#777; }
-        .gh-dark-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
-        .gh-dark-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
-        .gh-dark-btn-cancel { background:none; border:1.5px solid #3a3a3a; color:#c0c0c0; }
-        .gh-dark-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,#e8a020); color:#3a2600; }
-        .gh-dark-btn-roden { flex:1; background:linear-gradient(135deg,#c0392b,#7a1f16); color:#fff; }
+        .gh-btn-cancel { background:none; border:1.5px solid var(--gh-bg-alt); color:var(--gh-text-muted); }
+        .gh-btn-save { flex:1; background:linear-gradient(135deg,var(--gh-accent-mid),var(--gh-accent)); color:#fff; }
+        .gh-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,#e8a020); color:#3a2600; }
+        .gh-btn-roden { flex:1; background:linear-gradient(135deg,#c0392b,#7a1f16); color:#fff; }
       </style>
       <ha-card>
         <div class="gh-title">\u{1F333} ${this._config.title || "Gehoelze"}</div>
@@ -607,22 +600,22 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
       </div>
 
       <div class="gh-modal-backdrop" id="gh-harvest-backdrop">
-        <div class="gh-dark-modal">
-          <div class="gh-dark-modal-title">\u{1F33E} Ernte eintragen</div>
-          <div class="gh-dark-modal-sub" id="gh-harvest-sub"></div>
-          <div class="gh-dark-form-grid">
+        <div class="gh-modal">
+          <div class="gh-modal-title">\u{1F33E} Ernte eintragen</div>
+          <div class="gh-modal-sub" id="gh-harvest-sub"></div>
+          <div class="gh-form-grid">
             <div><label>Datum</label><input type="date" id="gh-h-date"></div>
             <div><label>Menge (optional)</label><input type="number" step="0.001" min="0" placeholder="z.B. 1.5" id="gh-h-amount"></div>
             <div>
               <label>Einheit</label>
               <select id="gh-h-unit"><option value="kg">kg</option><option value="g">g</option><option value="St\u00fcck">St\u00fcck</option></select>
             </div>
-            <div class="gh-dark-form-full"><label>Notiz (optional)</label><input type="text" placeholder="z.B. erste Ernte, sehr s\u00fc\u00df\u2026" id="gh-h-note"></div>
+            <div class="gh-form-full"><label>Notiz (optional)</label><input type="text" placeholder="z.B. erste Ernte, sehr s\u00fc\u00df\u2026" id="gh-h-note"></div>
           </div>
-          <div class="gh-dark-modal-actions">
-            <button class="gh-dark-btn gh-dark-btn-cancel" id="gh-h-cancel">Abbrechen</button>
-            <button class="gh-dark-btn gh-dark-btn-teil" id="gh-h-teil">\u{1F33E} Teilernte</button>
-            <button class="gh-dark-btn gh-dark-btn-roden" id="gh-h-roden">\u{1FA93} Roden</button>
+          <div class="gh-modal-actions">
+            <button class="gh-btn gh-btn-cancel" id="gh-h-cancel">Abbrechen</button>
+            <button class="gh-btn gh-btn-teil" id="gh-h-teil">\u{1F33E} Teilernte</button>
+            <button class="gh-btn gh-btn-roden" id="gh-h-roden">\u{1FA93} Roden</button>
           </div>
         </div>
       </div>
@@ -777,14 +770,19 @@ class GartentagebuchGehoelzeCardEditor extends HTMLElement {
   _schema() {
     return [
       { name: "title", selector: { text: {} } },
-      { name: "api_base", selector: { text: {} } }
+      { name: "api_base", selector: { text: {} } },
+      { name: "design", selector: { select: { mode: "dropdown", options: [
+        { value: "light", label: "Hell" },
+        { value: "dark", label: "Dunkel" }
+      ] } } }
     ];
   }
 
   _labels(name) {
     const map = {
       title: "Titel",
-      api_base: "API Basis-URL (z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api)"
+      api_base: "API Basis-URL (z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api)",
+      design: "Design"
     };
     return map[name] || name;
   }
