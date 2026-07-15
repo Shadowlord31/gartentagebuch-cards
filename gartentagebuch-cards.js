@@ -46,8 +46,8 @@ class GartentagebuchFelderCard extends HTMLElement {
   }
 
   async _loadData() {
-    const base = await this._base();
     try {
+      const base = await this._base();
       const [beds, occ, plants] = await Promise.all([
         fetch(`${base}/beds`).then(r => r.json()),
         fetch(`${base}/beds/occupancy`).then(r => r.json()),
@@ -306,8 +306,8 @@ class GartentagebuchFelderCard extends HTMLElement {
   async _convertPlanToEntry(bedId, planId, plant, emoji) {
     const bed = this._beds.find(b => b.id === bedId);
     if (!confirm(`${emoji} ${plant} in ${bed ? bed.name : "diesem Feld"} jetzt als gepflanzt ins Tagebuch eintragen?`)) return;
-    const base = await this._base();
     try {
+      const base = await this._base();
       const plansRes = await fetch(`${base}/plans`);
       const plans = await plansRes.json();
       const plan = plans.find(p => String(p.id) === String(planId));
@@ -352,7 +352,6 @@ class GartentagebuchFelderCard extends HTMLElement {
   _closeDauerhaftModal() { this._root.getElementById("dauerhaft-backdrop").classList.remove("open"); }
 
   async _saveDauerhaftHarvest(roden) {
-    const base = await this._base();
     const amount = this._root.getElementById("dh-amount").value;
     const body = {
       id: Date.now(),
@@ -367,6 +366,7 @@ class GartentagebuchFelderCard extends HTMLElement {
       harvest_final: !!roden
     };
     try {
+      const base = await this._base();
       const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       if (roden && this._activePlanId) {
@@ -392,7 +392,6 @@ class GartentagebuchFelderCard extends HTMLElement {
   }
 
   async _saveHarvest(final) {
-    const base = await this._base();
     const amount = this._root.getElementById("h-amount").value;
     const body = {
       id: Date.now(),
@@ -407,6 +406,7 @@ class GartentagebuchFelderCard extends HTMLElement {
       harvest_final: !!final
     };
     try {
+      const base = await this._base();
       const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       this._closeHarvestModal();
@@ -417,7 +417,6 @@ class GartentagebuchFelderCard extends HTMLElement {
   }
 
   async _savePlant() {
-    const base = await this._base();
     const sel = this._root.getElementById("p-plant");
     const opt = sel.options[sel.selectedIndex];
     if (!opt) { alert("Bitte Pflanze w\u00e4hlen"); return; }
@@ -432,6 +431,7 @@ class GartentagebuchFelderCard extends HTMLElement {
       plant_family_id: opt.dataset.fam ? parseInt(opt.dataset.fam, 10) : null
     };
     try {
+      const base = await this._base();
       const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       this._closePlantModal();
@@ -547,8 +547,8 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   }
 
   async _loadData() {
-    const base = await this._base();
     try {
+      const base = await this._base();
       const [items, plants] = await Promise.all([
         fetch(`${base}/perennials`).then(r => r.json()),
         fetch(`${base}/plants`).then(r => r.json()).catch(() => [])
@@ -731,7 +731,6 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   async _saveHarvest(roden) {
     const item = this._items.find(i => i.id === this._harvestItemId);
     if (!item) return;
-    const base = await this._base();
     const amount = this._root.getElementById("gh-h-amount").value;
     const body = {
       id: Date.now(),
@@ -747,6 +746,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
       harvest_final: !!roden
     };
     try {
+      const base = await this._base();
       const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       if (roden) {
@@ -765,7 +765,6 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
   }
 
   async _save() {
-    const base = await this._base();
     const name = this._root.getElementById("gh-name").value.trim();
     if (!name) { alert("Bitte Namen eingeben"); return; }
     const plantSel = this._root.getElementById("gh-plant");
@@ -776,6 +775,7 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
       location_note: this._root.getElementById("gh-location").value.trim() || null
     };
     try {
+      const base = await this._base();
       const r = await fetch(`${base}/perennials`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       this._closeAddModal();
@@ -887,8 +887,8 @@ class GartentagebuchUebersichtCard extends HTMLElement {
   }
 
   async _loadData() {
-    const base = await this._base();
     try {
+      const base = await this._base();
       const [occ, perennials, entries, costs] = await Promise.all([
         fetch(`${base}/beds/occupancy`).then(r => r.json()),
         fetch(`${base}/perennials`).then(r => r.json()),
@@ -1106,8 +1106,8 @@ class GartentagebuchKostenCard extends HTMLElement {
   }
 
   async _loadData() {
-    const base = await this._base();
     try {
+      const base = await this._base();
       const [costs, kategorien] = await Promise.all([
         fetch(`${base}/costs`).then(r => r.json()),
         fetch(`${base}/costs/kategorien`).then(r => r.json())
@@ -1246,7 +1246,6 @@ class GartentagebuchKostenCard extends HTMLElement {
   _closeModal() { this._root.getElementById("gk-modal-backdrop").classList.remove("open"); }
 
   async _save() {
-    const base = await this._base();
     const amount = this._root.getElementById("gk-amount").value;
     if (!amount || parseFloat(amount) <= 0) { alert("Bitte einen Betrag eingeben"); return; }
     const body = {
@@ -1256,6 +1255,7 @@ class GartentagebuchKostenCard extends HTMLElement {
       amount: parseFloat(amount)
     };
     try {
+      const base = await this._base();
       const r = await fetch(`${base}/costs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       this._closeModal();
