@@ -1012,6 +1012,258 @@ class GartentagebuchUebersichtCardEditor extends HTMLElement {
 
 customElements.define("gartentagebuch-uebersicht-card-editor", GartentagebuchUebersichtCardEditor);
 
+class GartentagebuchKostenCard extends HTMLElement {
+  setConfig(config) {
+    if (!config.api_base) throw new Error("api_base ist erforderlich, z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api");
+    this._config = config;
+    this.setAttribute("data-theme", config.design === "dark" ? "dark" : "light");
+    this._costs = [];
+    this._kategorien = [];
+    this._loaded = false;
+    if (!this._root) {
+      this._root = this.attachShadow({ mode: "open" });
+      this._render();
+    }
+    this._loadData();
+  }
+
+  set hass(hass) { this._hass = hass; }
+
+  getCardSize() { return 3; }
+
+  static getConfigElement() {
+    return document.createElement("gartentagebuch-kosten-card-editor");
+  }
+
+  static getStubConfig() {
+    return { title: "Garten Kosten", api_base: "", design: "light" };
+  }
+
+  async _loadData() {
+    const base = this._config.api_base.replace(/\/$/, "");
+    try {
+      const [costs, kategorien] = await Promise.all([
+        fetch(`${base}/costs`).then(r => r.json()),
+        fetch(`${base}/costs/kategorien`).then(r => r.json())
+      ]);
+      this._costs = costs;
+      this._kategorien = kategorien;
+      this._loaded = true;
+      this._renderContent();
+    } catch (e) {
+      this._loaded = "error";
+      this._renderContent(e.message);
+    }
+  }
+
+  _fmtEuro(v) {
+    return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " \u20ac";
+  }
+
+  _render() {
+    this._root.innerHTML = `
+      <style>
+        :host([data-theme="light"]) {
+          --gk-bg:#f9f5ec; --gk-modal-bg:#fff; --gk-bg-alt:#ede8d8;
+          --gk-text:#2a2a1e; --gk-text-muted:#6b6b50; --gk-input-bg:#f9f5ec; --gk-accent:#2d5016;
+        }
+        :host([data-theme="dark"]) {
+          --gk-bg:#262626; --gk-modal-bg:#1e1e1e; --gk-bg-alt:#3a3a3a;
+          --gk-text:#f2f2f2; --gk-text-muted:#a8a8a8; --gk-input-bg:#2a2a2a; --gk-accent:#8fce6a;
+        }
+        ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; background:var(--gk-bg); color:var(--gk-text); }
+        .gk-title { font-size:1.15rem; font-weight:700; color:var(--gk-accent); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .gk-total-row { display:flex; align-items:center; justify-content:space-between; background:var(--gk-bg-alt); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+        .gk-total-label { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--gk-text-muted); }
+        .gk-total-value { font-size:1.5rem; font-weight:700; color:var(--gk-text); }
+        .gk-cat-row { display:flex; align-items:center; gap:10px; padding:8px 4px; }
+        .gk-cat-icon { font-size:1.2rem; width:1.6rem; text-align:center; flex-shrink:0; }
+        .gk-cat-name { flex:1; font-size:.88rem; color:var(--gk-text); }
+        .gk-cat-value { font-size:.88rem; font-weight:700; color:var(--gk-text-muted); }
+        .gk-add-row { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; margin-top:8px; border:1.5px dashed var(--gk-bg-alt); border-radius:10px; cursor:pointer; color:var(--gk-text-muted); font-weight:700; font-size:.88rem; }
+        .gk-add-row:hover { border-color:var(--gk-accent); color:var(--gk-accent); }
+        .gk-loading, .gk-error, .gk-empty { color:var(--gk-text-muted); font-size:.9rem; padding:8px 0; }
+        .gk-error { color:#e05d4a; }
+
+        .gk-modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:16px; }
+        .gk-modal-backdrop.open { display:flex; }
+        .gk-modal { background:var(--gk-modal-bg); color:var(--gk-text); border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.4); }
+        .gk-modal-title { font-size:1.15rem; font-weight:700; color:var(--gk-accent); margin-bottom:16px; }
+        .gk-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .gk-form-full { grid-column: span 2; }
+        .gk-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gk-text-muted); margin-bottom:4px; }
+        .gk-form-grid input, .gk-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gk-bg-alt); border-radius:8px; font-size:.92rem; color:var(--gk-text); background:var(--gk-input-bg); }
+        .gk-form-grid input::placeholder { color:var(--gk-text-muted); opacity:.7; }
+        .gk-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+        .gk-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
+        .gk-btn-cancel { background:none; border:1.5px solid var(--gk-bg-alt); color:var(--gk-text-muted); }
+        .gk-btn-save { flex:1; background:linear-gradient(135deg,#4a7c2f,#2d5016); color:#fff; }
+      </style>
+      <ha-card>
+        <div class="gk-title">\u{1F4B0} ${this._config.title || "Garten Kosten"}</div>
+        <div class="gk-content-container"><div class="gk-loading">Lade\u2026</div></div>
+      </ha-card>
+
+      <div class="gk-modal-backdrop" id="gk-modal-backdrop">
+        <div class="gk-modal">
+          <div class="gk-modal-title">\u{1F4B0} Ausgabe erfassen</div>
+          <div class="gk-form-grid">
+            <div><label>Datum</label><input type="date" id="gk-date"></div>
+            <div>
+              <label>Kategorie</label>
+              <select id="gk-category"></select>
+            </div>
+            <div class="gk-form-full"><label>Betrag (\u20ac)</label><input type="number" step="0.01" min="0" placeholder="z.B. 12.90" id="gk-amount"></div>
+            <div class="gk-form-full"><label>Beschreibung (optional)</label><input type="text" placeholder="z.B. Saatgut Tomaten" id="gk-desc"></div>
+          </div>
+          <div class="gk-modal-actions">
+            <button class="gk-btn gk-btn-cancel" id="gk-cancel">Abbrechen</button>
+            <button class="gk-btn gk-btn-save" id="gk-save">Speichern</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this._root.getElementById("gk-cancel").onclick = () => this._closeModal();
+    this._root.getElementById("gk-save").onclick = () => this._save();
+  }
+
+  _renderContent(errorMsg) {
+    const container = this._root.querySelector(".gk-content-container");
+    if (this._loaded === "error") {
+      container.innerHTML = `<div class="gk-error">Fehler beim Laden: ${errorMsg || "unbekannt"}</div>`;
+      return;
+    }
+    if (!this._loaded) {
+      container.innerHTML = `<div class="gk-loading">Lade\u2026</div>`;
+      return;
+    }
+    const year = new Date().getFullYear();
+    const yearStr = String(year);
+    const yCosts = this._costs.filter(c => (c.date || "").startsWith(yearStr));
+    const total = yCosts.reduce((s, c) => s + parseFloat(c.amount), 0);
+
+    const catTotals = {};
+    yCosts.forEach(c => { catTotals[c.category] = (catTotals[c.category] || 0) + parseFloat(c.amount); });
+    const catRows = this._kategorien
+      .map(k => ({ ...k, total: catTotals[k.name] || 0 }))
+      .filter(k => k.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .map(k => `<div class="gk-cat-row">
+        <div class="gk-cat-icon">${k.icon || "\u{1F3F7}"}</div>
+        <div class="gk-cat-name">${this._esc(k.name)}</div>
+        <div class="gk-cat-value">${this._fmtEuro(k.total)}</div>
+      </div>`).join("");
+
+    container.innerHTML = `
+      <div class="gk-total-row">
+        <div class="gk-total-label">Gesamt ${year}</div>
+        <div class="gk-total-value">${this._fmtEuro(total)}</div>
+      </div>
+      ${catRows || `<div class="gk-empty">Noch keine Ausgaben ${year}.</div>`}
+      <div class="gk-add-row" id="gk-add-row">\u2795 Ausgabe hinzuf\u00fcgen</div>
+    `;
+    container.querySelector("#gk-add-row").onclick = () => this._openModal();
+  }
+
+  _esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  _openModal() {
+    const sel = this._root.getElementById("gk-category");
+    sel.innerHTML = this._kategorien.map(k => `<option value="${this._esc(k.name)}">${k.icon || "\u{1F3F7}"} ${this._esc(k.name)}</option>`).join("");
+    this._root.getElementById("gk-date").value = new Date().toISOString().split("T")[0];
+    this._root.getElementById("gk-amount").value = "";
+    this._root.getElementById("gk-desc").value = "";
+    this._root.getElementById("gk-modal-backdrop").classList.add("open");
+  }
+
+  _closeModal() { this._root.getElementById("gk-modal-backdrop").classList.remove("open"); }
+
+  async _save() {
+    const base = this._config.api_base.replace(/\/$/, "");
+    const amount = this._root.getElementById("gk-amount").value;
+    if (!amount || parseFloat(amount) <= 0) { alert("Bitte einen Betrag eingeben"); return; }
+    const body = {
+      cost_date: this._root.getElementById("gk-date").value,
+      category: this._root.getElementById("gk-category").value,
+      description: this._root.getElementById("gk-desc").value.trim() || null,
+      amount: parseFloat(amount)
+    };
+    try {
+      const r = await fetch(`${base}/costs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      this._closeModal();
+      await this._loadData();
+    } catch (e) {
+      alert("Fehler beim Speichern: " + e.message);
+    }
+  }
+}
+
+customElements.define("gartentagebuch-kosten-card", GartentagebuchKostenCard);
+
+class GartentagebuchKostenCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _schema() {
+    return [
+      { name: "title", selector: { text: {} } },
+      { name: "api_base", selector: { text: {} } },
+      { name: "design", selector: { select: { mode: "dropdown", options: [
+        { value: "light", label: "Hell" },
+        { value: "dark", label: "Dunkel" }
+      ] } } }
+    ];
+  }
+
+  _labels(name) {
+    const map = {
+      title: "Titel",
+      api_base: "API Basis-URL (z.B. http://DEINE-IP-ODER-DOMAIN:3002/garten/api)",
+      design: "Design"
+    };
+    return map[name] || name;
+  }
+
+  _render() {
+    if (!this._config || !this._hass) return;
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      this._form.addEventListener("value-changed", (ev) => {
+        ev.stopPropagation();
+        this._config = ev.detail.value;
+        this.dispatchEvent(new CustomEvent("config-changed", {
+          detail: { config: this._config },
+          bubbles: true,
+          composed: true
+        }));
+      });
+      this.innerHTML = "";
+      this.appendChild(this._form);
+    }
+    this._form.hass = this._hass;
+    this._form.data = this._config;
+    this._form.schema = this._schema();
+    this._form.computeLabel = (s) => this._labels(s.name);
+  }
+}
+
+customElements.define("gartentagebuch-kosten-card-editor", GartentagebuchKostenCardEditor);
+
+window.customCards.push({
+  type: "gartentagebuch-kosten-card",
+  name: "Gartentagebuch Kosten",
+  description: "Jahresuebersicht der Ausgaben nach Kategorie, mit Modal zum Erfassen neuer Ausgaben"
+});
+
 window.customCards.push({
   type: "gartentagebuch-uebersicht-card",
   name: "Gartentagebuch \u00dcbersicht",
