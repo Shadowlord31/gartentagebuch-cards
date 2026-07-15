@@ -32,7 +32,11 @@ class GartentagebuchFelderCard extends HTMLElement {
     if (this._config.addon_slug) {
       if (!this._ingressBase) {
         if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
-        const raw = await this._hass.callApi("GET", `hassio/addons/${this._config.addon_slug}/info`);
+        const raw = await this._hass.connection.sendMessagePromise({
+          type: "supervisor/api",
+          endpoint: `/addons/${this._config.addon_slug}/info`,
+          method: "get"
+        });
         const data = raw && raw.data ? raw.data : raw;
         if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
         this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
@@ -540,7 +544,11 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
     if (this._config.addon_slug) {
       if (!this._ingressBase) {
         if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
-        const raw = await this._hass.callApi("GET", `hassio/addons/${this._config.addon_slug}/info`);
+        const raw = await this._hass.connection.sendMessagePromise({
+          type: "supervisor/api",
+          endpoint: `/addons/${this._config.addon_slug}/info`,
+          method: "get"
+        });
         const data = raw && raw.data ? raw.data : raw;
         if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
         this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
@@ -887,7 +895,11 @@ class GartentagebuchUebersichtCard extends HTMLElement {
     if (this._config.addon_slug) {
       if (!this._ingressBase) {
         if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
-        const raw = await this._hass.callApi("GET", `hassio/addons/${this._config.addon_slug}/info`);
+        const raw = await this._hass.connection.sendMessagePromise({
+          type: "supervisor/api",
+          endpoint: `/addons/${this._config.addon_slug}/info`,
+          method: "get"
+        });
         const data = raw && raw.data ? raw.data : raw;
         if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
         this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
@@ -1113,7 +1125,11 @@ class GartentagebuchKostenCard extends HTMLElement {
     if (this._config.addon_slug) {
       if (!this._ingressBase) {
         if (!this._hass) throw new Error("Warte auf Home Assistant Verbindung...");
-        const raw = await this._hass.callApi("GET", `hassio/addons/${this._config.addon_slug}/info`);
+        const raw = await this._hass.connection.sendMessagePromise({
+          type: "supervisor/api",
+          endpoint: `/addons/${this._config.addon_slug}/info`,
+          method: "get"
+        });
         const data = raw && raw.data ? raw.data : raw;
         if (!data || !data.ingress_entry) throw new Error("Ingress-URL fuer '" + this._config.addon_slug + "' nicht gefunden. Slug korrekt?");
         this._ingressBase = data.ingress_entry.replace(/\/$/, "") + "/garten/api";
