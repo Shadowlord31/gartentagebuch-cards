@@ -897,7 +897,11 @@ class GartentagebuchUebersichtCard extends HTMLElement {
         }
         ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; background:var(--gu-bg); color:var(--gu-text); }
         .gu-title { font-size:1.15rem; font-weight:700; color:var(--gu-accent); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-        .gu-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(80px,1fr)); gap:10px; }
+        .gu-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+        .gu-cost-row { display:flex; align-items:center; justify-content:space-between; background:var(--gu-bg-alt); border-radius:12px; padding:12px 16px; margin-top:10px; }
+        .gu-cost-label { display:flex; align-items:center; gap:8px; font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--gu-text-muted); }
+        .gu-cost-label span.emoji { font-size:1.3rem; }
+        .gu-cost-value { font-size:1.3rem; font-weight:700; color:var(--gu-text); }
         .gu-stat { background:var(--gu-bg-alt); border-radius:12px; padding:14px 8px; text-align:center; }
         .gu-stat-emoji { font-size:1.6rem; }
         .gu-stat-number { font-size:1.6rem; font-weight:700; color:var(--gu-text); margin-top:4px; }
@@ -941,11 +945,10 @@ class GartentagebuchUebersichtCard extends HTMLElement {
           <div class="gu-stat-number">${s.gehoelze}</div>
           <div class="gu-stat-label">Geh\u00f6lze</div>
         </div>
-        <div class="gu-stat">
-          <div class="gu-stat-emoji">\u{1F4B0}</div>
-          <div class="gu-stat-number gu-stat-number-money">${this._fmtEuro(s.kosten)}</div>
-          <div class="gu-stat-label">Kosten ${s.year}</div>
-        </div>
+      </div>
+      <div class="gu-cost-row">
+        <div class="gu-cost-label"><span class="emoji">\u{1F4B0}</span> Kosten ${s.year}</div>
+        <div class="gu-cost-value">${this._fmtEuro(s.kosten)}</div>
       </div>
     `;
   }
