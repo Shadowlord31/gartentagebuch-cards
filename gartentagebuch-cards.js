@@ -90,6 +90,21 @@ class GartentagebuchFelderCard extends HTMLElement {
         .gt-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,var(--gt-harvest)); color:#5a3a00; }
         .gt-btn-final { flex:1; background:linear-gradient(135deg,#c0392b,#922b21); color:#fff; }
         .gt-btn-pflanzen { flex:1; background:linear-gradient(135deg,var(--gt-green-mid),var(--gt-green-deep)); color:#fff; }
+
+        /* Dauerbepflanzung-Ernte-Modal: bewusst dunkles Design */
+        .gt-dark-modal { background:#1e1e1e; border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border:1px solid #333; }
+        .gt-dark-modal-title { font-size:1.15rem; font-weight:700; color:#f2f2f2; margin-bottom:6px; }
+        .gt-dark-modal-sub { font-size:.88rem; color:#a8a8a8; margin-bottom:16px; }
+        .gt-dark-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .gt-dark-form-full { grid-column: span 2; }
+        .gt-dark-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#9a9a9a; margin-bottom:4px; }
+        .gt-dark-form-grid input, .gt-dark-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid #3a3a3a; border-radius:8px; font-size:.92rem; color:#f2f2f2; background:#2a2a2a; }
+        .gt-dark-form-grid input::placeholder { color:#777; }
+        .gt-dark-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+        .gt-dark-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
+        .gt-dark-btn-cancel { background:none; border:1.5px solid #3a3a3a; color:#c0c0c0; }
+        .gt-dark-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,#e8a020); color:#3a2600; }
+        .gt-dark-btn-roden { flex:1; background:linear-gradient(135deg,#c0392b,#7a1f16); color:#fff; }
       </style>
       <ha-card>
         <div class="gt-title">\u{1F33F} ${this._config.title || "Garten"}</div>
@@ -134,6 +149,27 @@ class GartentagebuchFelderCard extends HTMLElement {
           </div>
         </div>
       </div>
+
+      <div class="gt-modal-backdrop" id="dauerhaft-backdrop">
+        <div class="gt-dark-modal">
+          <div class="gt-dark-modal-title">\u{1F33E} Ernte eintragen</div>
+          <div class="gt-dark-modal-sub" id="dauerhaft-sub"></div>
+          <div class="gt-dark-form-grid">
+            <div><label>Datum</label><input type="date" id="dh-date"></div>
+            <div><label>Menge (optional)</label><input type="number" step="0.001" min="0" placeholder="z.B. 1.5" id="dh-amount"></div>
+            <div>
+              <label>Einheit</label>
+              <select id="dh-unit"><option value="kg">kg</option><option value="g">g</option><option value="St\u00fcck">St\u00fcck</option></select>
+            </div>
+            <div class="gt-dark-form-full"><label>Notiz (optional)</label><input type="text" placeholder="z.B. erste Ernte, sehr s\u00fc\u00df\u2026" id="dh-note"></div>
+          </div>
+          <div class="gt-dark-modal-actions">
+            <button class="gt-dark-btn gt-dark-btn-cancel" id="dh-cancel">Abbrechen</button>
+            <button class="gt-dark-btn gt-dark-btn-teil" id="dh-teil">\u{1F33E} Teilernte</button>
+            <button class="gt-dark-btn gt-dark-btn-roden" id="dh-roden">\u{1FA93} Roden</button>
+          </div>
+        </div>
+      </div>
     `;
 
     this._root.getElementById("h-cancel").onclick = () => this._closeHarvestModal();
@@ -141,6 +177,9 @@ class GartentagebuchFelderCard extends HTMLElement {
     this._root.getElementById("h-teil").onclick = () => this._saveHarvest(false);
     this._root.getElementById("h-final").onclick = () => this._saveHarvest(true);
     this._root.getElementById("p-save").onclick = () => this._savePlant();
+    this._root.getElementById("dh-cancel").onclick = () => this._closeDauerhaftModal();
+    this._root.getElementById("dh-teil").onclick = () => this._saveDauerhaftHarvest(false);
+    this._root.getElementById("dh-roden").onclick = () => this._saveDauerhaftHarvest(true);
   }
 
   _renderGrid(errorMsg) {
@@ -172,13 +211,19 @@ class GartentagebuchFelderCard extends HTMLElement {
       const zielListe = getLeaves(standort);
       const tiles = zielListe.map(feld => {
         const occ = (this._occupancy[feld.id] || [])[0];
-        if (occ && (occ.source === "tagebuch" || occ.source === "dauerhaft")) {
-          const badge = occ.source === "dauerhaft" ? `<div class="gt-feld-badge gt-feld-badge-dauerhaft">Dauerhaft</div>` : "";
+        if (occ && occ.source === "tagebuch") {
           return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="harvest" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}">
             <div class="gt-feld-name">${this._esc(feld.name)}</div>
             <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
             <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
-            ${badge}
+          </div>`;
+        }
+        if (occ && occ.source === "dauerhaft") {
+          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="dauerhaft" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}" data-plan-id="${occ.plan_id}">
+            <div class="gt-feld-name">${this._esc(feld.name)}</div>
+            <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
+            <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
+            <div class="gt-feld-badge gt-feld-badge-dauerhaft">Dauerhaft</div>
           </div>`;
         }
         if (occ && occ.source === "planer") {
@@ -206,6 +251,8 @@ class GartentagebuchFelderCard extends HTMLElement {
         const bedId = parseInt(el.dataset.bedId, 10);
         if (el.dataset.action === "harvest") {
           this._openHarvestModal(bedId, el.dataset.plant, el.dataset.emoji);
+        } else if (el.dataset.action === "dauerhaft") {
+          this._openDauerhaftModal(bedId, el.dataset.plant, el.dataset.emoji, parseInt(el.dataset.planId, 10));
         } else {
           this._openPlantModal(bedId, el.dataset.preselect || null);
         }
@@ -245,6 +292,62 @@ class GartentagebuchFelderCard extends HTMLElement {
     this._root.getElementById("plant-backdrop").classList.add("open");
   }
   _closePlantModal() { this._root.getElementById("plant-backdrop").classList.remove("open"); }
+
+  _openDauerhaftModal(bedId, plant, emoji, planId) {
+    const bed = this._beds.find(b => b.id === bedId);
+    this._activePlanId = planId;
+    this._activeDauerhaftEmoji = emoji;
+    this._activeDauerhaftPlant = plant;
+    this._activeDauerhaftBedId = bedId;
+    this._root.getElementById("dauerhaft-sub").textContent = `${emoji} ${plant} \u00b7 ${bed ? bed.name : ""}`;
+    this._root.getElementById("dh-date").value = this._today();
+    this._root.getElementById("dh-amount").value = "";
+    this._root.getElementById("dh-unit").value = "kg";
+    this._root.getElementById("dh-note").value = "";
+    this._root.getElementById("dauerhaft-backdrop").classList.add("open");
+  }
+
+  _closeDauerhaftModal() { this._root.getElementById("dauerhaft-backdrop").classList.remove("open"); }
+
+  async _saveDauerhaftHarvest(roden) {
+    const base = this._config.api_base.replace(/\/$/, "");
+    const amount = this._root.getElementById("dh-amount").value;
+    const body = {
+      id: Date.now(),
+      emoji: this._activeDauerhaftEmoji,
+      plant: this._activeDauerhaftPlant,
+      date: this._root.getElementById("dh-date").value,
+      cat: "harvest",
+      bed_id: this._activeDauerhaftBedId,
+      description: this._root.getElementById("dh-note").value || (roden ? "Gerodet" : ""),
+      harvest_amount: amount ? parseFloat(amount) : null,
+      harvest_unit: this._root.getElementById("dh-unit").value,
+      harvest_final: !!roden
+    };
+    try {
+      const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      if (roden && this._activePlanId) {
+        const plansRes = await fetch(`${base}/plans`);
+        const plans = await plansRes.json();
+        const plan = plans.find(p => p.id === this._activePlanId);
+        if (plan) {
+          const patchBody = {
+            emoji: plan.emoji, plant: plan.plant, month: plan.month, month_to: plan.month_to,
+            year: plan.year, note: plan.note, bed_id: plan.bed_id, plant_family_id: plan.plant_family_id,
+            is_permanent: plan.is_permanent, removed_year: new Date().getFullYear(),
+            plant_cat: plan.plant_cat, plant_id: plan.plant_id
+          };
+          const r2 = await fetch(`${base}/plans/${this._activePlanId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patchBody) });
+          if (!r2.ok) throw new Error(await r2.text());
+        }
+      }
+      this._closeDauerhaftModal();
+      await this._loadData();
+    } catch (e) {
+      alert("Fehler beim Speichern: " + e.message);
+    }
+  }
 
   async _saveHarvest(final) {
     const base = this._config.api_base.replace(/\/$/, "");
