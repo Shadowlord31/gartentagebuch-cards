@@ -227,7 +227,7 @@ class GartentagebuchFelderCard extends HTMLElement {
           </div>`;
         }
         if (occ && occ.source === "planer") {
-          return `<div class="gt-feld geplant" data-bed-id="${feld.id}" data-action="plant" data-preselect="${this._esc(occ.plant)}">
+          return `<div class="gt-feld geplant" data-bed-id="${feld.id}" data-action="plan-convert" data-plan-id="${occ.plan_id}" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}">
             <div class="gt-feld-name">${this._esc(feld.name)}</div>
             <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
             <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
@@ -253,8 +253,10 @@ class GartentagebuchFelderCard extends HTMLElement {
           this._openHarvestModal(bedId, el.dataset.plant, el.dataset.emoji);
         } else if (el.dataset.action === "dauerhaft") {
           this._openDauerhaftModal(bedId, el.dataset.plant, el.dataset.emoji, parseInt(el.dataset.planId, 10));
+        } else if (el.dataset.action === "plan-convert") {
+          this._convertPlanToEntry(bedId, parseInt(el.dataset.planId, 10), el.dataset.plant, el.dataset.emoji);
         } else {
-          this._openPlantModal(bedId, el.dataset.preselect || null);
+          this._openPlantModal(bedId, null);
         }
       };
     });
@@ -292,6 +294,38 @@ class GartentagebuchFelderCard extends HTMLElement {
     this._root.getElementById("plant-backdrop").classList.add("open");
   }
   _closePlantModal() { this._root.getElementById("plant-backdrop").classList.remove("open"); }
+
+  async _convertPlanToEntry(bedId, planId, plant, emoji) {
+    const bed = this._beds.find(b => b.id === bedId);
+    if (!confirm(`${emoji} ${plant} in ${bed ? bed.name : "diesem Feld"} jetzt als gepflanzt ins Tagebuch eintragen?`)) return;
+    const base = this._config.api_base.replace(/\/$/, "");
+    try {
+      const plansRes = await fetch(`${base}/plans`);
+      const plans = await plansRes.json();
+      const plan = plans.find(p => p.id === planId);
+      if (!plan) throw new Error("Planung nicht gefunden");
+      const r1 = await fetch(`${base}/plans/${planId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done: true }) });
+      if (!r1.ok) throw new Error(await r1.text());
+      const catalogMatch = plan.plant_id ? this._plants.find(p => p.id === plan.plant_id) : null;
+      const entry = {
+        id: Date.now(),
+        emoji: plan.emoji,
+        plant: plan.plant,
+        date: this._today(),
+        location: "",
+        description: "Aus Planung eingetragen",
+        cat: "plant",
+        bed_id: plan.bed_id || null,
+        plant_cat: catalogMatch ? catalogMatch.plant_cat : null,
+        plant_family_id: plan.plant_family_id || null
+      };
+      const r2 = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry) });
+      if (!r2.ok) throw new Error(await r2.text());
+      await this._loadData();
+    } catch (e) {
+      alert("Fehler: " + e.message);
+    }
+  }
 
   _openDauerhaftModal(bedId, plant, emoji, planId) {
     const bed = this._beds.find(b => b.id === bedId);
