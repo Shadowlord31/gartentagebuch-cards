@@ -2,6 +2,10 @@
 // Zeigt Standorte + Felder mit aktueller Belegung, \u00f6ffnet Ernte-/Pflanzen-Modal
 // Spricht direkt mit der Gartentagebuch-App-API (/garten/api)
 
+// Gartentagebuch Felder-Card f\u00fcr Home Assistant
+// Zeigt Standorte + Felder mit aktueller Belegung, \u00f6ffnet Ernte-/Pflanzen-Modal
+// Spricht direkt mit der Gartentagebuch-App-API (/garten/api)
+
 class GartentagebuchFelderCard extends HTMLElement {
   setConfig(config) {
     if (!config.addon_slug) throw new Error("addon_slug ist erforderlich");
@@ -25,16 +29,6 @@ class GartentagebuchFelderCard extends HTMLElement {
       this._initialLoadDone = true;
       this._loadData();
     }
-  }
-
-  getCardSize() { return 3; }
-
-  static getConfigElement() {
-    return document.createElement("gartentagebuch-felder-card-editor");
-  }
-
-  static getStubConfig() {
-    return { title: "Pflanzen", addon_slug: "", design: "light" };
   }
 
   async _base() {
@@ -64,69 +58,38 @@ class GartentagebuchFelderCard extends HTMLElement {
     }
   }
 
+  getCardSize() { return 4; }
+
+  static getConfigElement() {
+    return document.createElement("gartentagebuch-felder-card-editor");
+  }
+
+  static getStubConfig() {
+    return { title: "Garten", addon_slug: "", design: "light" };
+  }
+
   async _loadData(retryCount) {
     retryCount = retryCount || 0;
     try {
       const base = await this._base();
-      const [entries, plans, beds, plants] = await Promise.all([
-        this._fetchJson(`${base}/entries`),
-        this._fetchJson(`${base}/plans`),
+      const [beds, occ, plants] = await Promise.all([
         this._fetchJson(`${base}/beds`),
-        this._fetchJson(`${base}/plants`)
+        this._fetchJson(`${base}/beds/occupancy`),
+        this._fetchJson(`${base}/plants`).catch(() => [])
       ]);
-      this._entries = entries;
-      this._plans = plans;
       this._beds = beds;
+      this._occupancy = occ;
       this._plants = plants;
       this._loaded = true;
-      this._renderList();
+      this._renderGrid();
     } catch (e) {
       if (retryCount < 5) {
         setTimeout(() => this._loadData(retryCount + 1), 2000 * (retryCount + 1));
         return;
       }
       this._loaded = "error";
-      this._renderList((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
+      this._renderGrid((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
-  }
-
-  _esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-  _today() { return new Date().toISOString().split("T")[0]; }
-
-  _bedPath(bedId) {
-    if (!bedId) return "";
-    const parts = [];
-    let b = this._beds.find(x => x.id === bedId);
-    while (b) { parts.unshift(b.name); b = b.parent_id ? this._beds.find(x => x.id === b.parent_id) : null; }
-    return parts.join(" \u203a ");
-  }
-
-  _getPlantGroups() {
-    const year = new Date().getFullYear();
-    const groups = {}, order = [];
-    const keyFor = o => o.plant_id ? `id_${o.plant_id}` : `name_${(o.plant || "").toLowerCase()}`;
-    const ensure = o => {
-      const k = keyFor(o);
-      if (!groups[k]) {
-        groups[k] = { key: k, plant_id: o.plant_id || null, name: o.plant, emoji: o.emoji, planted: [], harvests: [], permanent: [], planned: [] };
-        order.push(k);
-      }
-      return groups[k];
-    };
-    this._entries.forEach(e => {
-      if (!e.date || new Date(e.date).getFullYear() !== year) return;
-      if (e.cat === "plant") ensure(e).planted.push(e);
-      else if (e.cat === "harvest") ensure(e).harvests.push(e);
-    });
-    this._plans.forEach(p => {
-      if (p.is_permanent) {
-        if (p.year <= year && (p.removed_year == null || p.removed_year > year)) ensure(p).permanent.push(p);
-      } else if (p.year === year && !p.done) {
-        ensure(p).planned.push(p);
-      }
-    });
-    order.sort((a, b) => groups[a].name.localeCompare(groups[b].name));
-    return { groups, order };
   }
 
   _render() {
@@ -145,26 +108,25 @@ class GartentagebuchFelderCard extends HTMLElement {
         :host { --gt-harvest:#e8a020; --gt-harvest-pale:#fdf0d0; }
         ha-card { padding: 16px 18px; font-family: 'Lato', sans-serif; background:var(--gt-bg); color:var(--gt-text); }
         .gt-title { font-size:1.15rem; font-weight:700; color:var(--gt-accent); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-        .gt-plant-card { background:var(--gt-bg); border:1.5px solid var(--gt-bg-alt); border-radius:12px; padding:12px 14px; margin-bottom:8px; cursor:pointer; transition:.15s; }
-        .gt-plant-card:hover { border-color: var(--gt-accent-mid); }
-        .gt-plant-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
-        .gt-plant-emoji { font-size:1.6rem; }
-        .gt-plant-name { font-weight:700; color:var(--gt-accent); }
-        .gt-badges { display:flex; flex-wrap:wrap; gap:5px; }
-        .gt-badge { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
-        .gt-badge-planned { background:#e8f5d8; color:var(--gt-accent); }
-        .gt-badge-planted { background:var(--gt-harvest-pale); color:#7a4800; }
-        .gt-badge-harvest { background:var(--gt-harvest-pale); color:#7a4800; }
-        .gt-badge-final { background:#27ae60; color:#fff; }
-        .gt-badge-permanent { background:#5a9a3a; color:#fff; }
-        .gt-add-row { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; margin-top:8px; border:1.5px dashed var(--gt-bg-alt); border-radius:10px; cursor:pointer; color:var(--gt-text-muted); font-weight:700; font-size:.88rem; }
-        .gt-add-row:hover { border-color:var(--gt-accent-mid); color:var(--gt-accent); }
-        .gt-loading, .gt-error, .gt-empty { color:var(--gt-text-muted); font-size:.9rem; padding:8px 0; }
+        .gt-standort { margin-bottom: 18px; }
+        .gt-standort-name { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--gt-text-muted); margin-bottom:8px; }
+        .gt-felder { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
+        .gt-feld { background:var(--gt-bg); border:1.5px solid var(--gt-bg-alt); border-radius:12px; padding:12px 10px; cursor:pointer; transition:.15s; text-align:center; }
+        .gt-feld:hover { border-color: var(--gt-accent-mid); transform: translateY(-1px); }
+        .gt-feld.leer { opacity:.6; }
+        .gt-feld.geplant { border-style:dashed; border-color:var(--gt-harvest); }
+        .gt-feld-badge { font-size:.68rem; font-weight:700; color:#8a5a00; background:var(--gt-harvest-pale); border-radius:6px; padding:1px 6px; display:inline-block; margin-top:2px; }
+        .gt-feld-badge-dauerhaft { color:var(--gt-accent); background:var(--gt-bg-alt); }
+        .gt-feld-name { font-size:.72rem; font-weight:700; color:var(--gt-text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+        .gt-feld-emoji { font-size:1.6rem; }
+        .gt-feld-plant { font-size:.85rem; font-weight:600; color:var(--gt-text); margin-top:2px; }
+        .gt-feld-empty-label { font-size:.8rem; color:var(--gt-text-muted); margin-top:2px; }
+        .gt-loading, .gt-error { color:var(--gt-text-muted); font-size:.9rem; padding:8px 0; }
         .gt-error { color:#e05d4a; }
 
         .gt-modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:16px; }
         .gt-modal-backdrop.open { display:flex; }
-        .gt-modal { background:var(--gt-modal-bg); color:var(--gt-text); border-radius:16px; padding:26px 22px; max-width:440px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.4); max-height:85vh; overflow-y:auto; }
+        .gt-modal { background:var(--gt-modal-bg); color:var(--gt-text); border-radius:16px; padding:26px 22px; max-width:420px; width:100%; box-shadow:0 8px 40px rgba(0,0,0,.4); }
         .gt-modal-title { font-size:1.15rem; font-weight:700; color:var(--gt-accent); margin-bottom:6px; }
         .gt-modal-sub { font-size:.88rem; color:var(--gt-text-muted); margin-bottom:16px; }
         .gt-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -172,50 +134,18 @@ class GartentagebuchFelderCard extends HTMLElement {
         .gt-form-grid label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--gt-text-muted); margin-bottom:4px; }
         .gt-form-grid input, .gt-form-grid select { width:100%; box-sizing:border-box; padding:9px 11px; border:1.5px solid var(--gt-bg-alt); border-radius:8px; font-size:.92rem; color:var(--gt-text); background:var(--gt-input-bg); }
         .gt-form-grid input::placeholder { color:var(--gt-text-muted); opacity:.7; }
-        .gt-checkbox-row { display:flex; align-items:center; gap:8px; font-size:.88rem; font-weight:700; color:var(--gt-accent); cursor:pointer; }
         .gt-modal-actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
         .gt-btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; font-size:.88rem; cursor:pointer; font-family:'Lato',sans-serif; }
         .gt-btn-cancel { background:none; border:1.5px solid var(--gt-bg-alt); color:var(--gt-text-muted); }
         .gt-btn-teil { flex:1; background:linear-gradient(135deg,#f0ad3d,var(--gt-harvest)); color:#3a2600; }
         .gt-btn-final { flex:1; background:linear-gradient(135deg,#c0392b,#922b21); color:#fff; }
         .gt-btn-roden { flex:1; background:linear-gradient(135deg,#c0392b,#7a1f16); color:#fff; }
-        .gt-btn-save { flex:1; background:linear-gradient(135deg,var(--gt-accent-mid),var(--gt-accent)); color:#fff; }
-
-        .gt-pd-section { margin-bottom:16px; }
-        .gt-pd-title { font-size:.82rem; font-weight:700; color:var(--gt-accent); padding:4px 0; border-bottom:2px solid var(--gt-bg-alt); margin-bottom:6px; }
-        .gt-pd-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid var(--gt-bg-alt); }
-        .gt-pd-row:last-child { border-bottom:none; }
-        .gt-pd-row-main { font-size:.88rem; }
-        .gt-pd-row-actions { display:flex; gap:6px; flex-shrink:0; }
+        .gt-btn-pflanzen { flex:1; background:linear-gradient(135deg,var(--gt-accent-mid),var(--gt-accent)); color:#fff; }
       </style>
       <ha-card>
-        <div class="gt-title">\u{1F33F} ${this._config.title || "Pflanzen"}</div>
+        <div class="gt-title">\u{1F33F} ${this._config.title || "Garten"}</div>
         <div class="gt-grid-container"><div class="gt-loading">Lade\u2026</div></div>
       </ha-card>
-
-      <div class="gt-modal-backdrop" id="detail-backdrop">
-        <div class="gt-modal">
-          <div class="gt-modal-title" id="detail-title"></div>
-          <div id="detail-body"></div>
-          <div class="gt-modal-actions"><button class="gt-btn gt-btn-cancel" id="detail-close" style="flex:1">Schlie\u00dfen</button></div>
-        </div>
-      </div>
-
-      <div class="gt-modal-backdrop" id="new-entry-backdrop">
-        <div class="gt-modal">
-          <div class="gt-modal-title">\u{1F331} Neue Pflanzung</div>
-          <div class="gt-form-grid">
-            <div class="gt-form-full"><label>Pflanze aus Katalog</label><select id="ne-plant"></select></div>
-            <div><label>Datum</label><input type="date" id="ne-date"></div>
-            <div><label>Beet (optional)</label><select id="ne-bed"><option value="">\u2013 Kein Beet \u2013</option></select></div>
-            <div class="gt-form-full"><label class="gt-checkbox-row"><input type="checkbox" id="ne-permanent" style="width:16px;height:16px"> \u{1F33F} Dauerbepflanzung \u2013 bleibt jedes Jahr</label></div>
-          </div>
-          <div class="gt-modal-actions">
-            <button class="gt-btn gt-btn-cancel" id="ne-cancel">Abbrechen</button>
-            <button class="gt-btn gt-btn-save" id="ne-save">\u{1F331} Pflanzen</button>
-          </div>
-        </div>
-      </div>
 
       <div class="gt-modal-backdrop" id="harvest-backdrop">
         <div class="gt-modal">
@@ -233,7 +163,25 @@ class GartentagebuchFelderCard extends HTMLElement {
           <div class="gt-modal-actions">
             <button class="gt-btn gt-btn-cancel" id="h-cancel">Abbrechen</button>
             <button class="gt-btn gt-btn-teil" id="h-teil">\u{1F33E} Teilernte</button>
-            <button class="gt-btn gt-btn-final" id="h-final">\u2713 Endg\u00fcltig ernten</button>
+            <button class="gt-btn gt-btn-final" id="h-final">\u{2713} Endg\u00fcltig ernten</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="gt-modal-backdrop" id="plant-backdrop">
+        <div class="gt-modal">
+          <div class="gt-modal-title">\u{1F331} Pflanzen eintragen</div>
+          <div class="gt-modal-sub" id="plant-sub"></div>
+          <div class="gt-form-grid">
+            <div class="gt-form-full">
+              <label>Pflanze</label>
+              <select id="p-plant"></select>
+            </div>
+            <div><label>Datum</label><input type="date" id="p-date"></div>
+          </div>
+          <div class="gt-modal-actions">
+            <button class="gt-btn gt-btn-cancel" id="p-cancel">Abbrechen</button>
+            <button class="gt-btn gt-btn-pflanzen" id="p-save">\u{1F331} Pflanzen</button>
           </div>
         </div>
       </div>
@@ -258,213 +206,108 @@ class GartentagebuchFelderCard extends HTMLElement {
           </div>
         </div>
       </div>
-
-      <div class="gt-modal-backdrop" id="date-edit-backdrop">
-        <div class="gt-modal" style="max-width:320px">
-          <div class="gt-modal-title">\u{1F4C5} Datum \u00e4ndern</div>
-          <input type="date" id="de-date" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--gt-bg-alt);border-radius:8px;background:var(--gt-input-bg);color:var(--gt-text)">
-          <div class="gt-modal-actions">
-            <button class="gt-btn gt-btn-cancel" id="de-cancel">Abbrechen</button>
-            <button class="gt-btn gt-btn-save" id="de-save">Speichern</button>
-          </div>
-        </div>
-      </div>
     `;
 
-    this._root.getElementById("detail-close").onclick = () => this._closeDetail();
-    this._root.getElementById("ne-cancel").onclick = () => this._closeNewEntryModal();
-    this._root.getElementById("ne-save").onclick = () => this._saveNewEntry();
     this._root.getElementById("h-cancel").onclick = () => this._closeHarvestModal();
+    this._root.getElementById("p-cancel").onclick = () => this._closePlantModal();
     this._root.getElementById("h-teil").onclick = () => this._saveHarvest(false);
     this._root.getElementById("h-final").onclick = () => this._saveHarvest(true);
+    this._root.getElementById("p-save").onclick = () => this._savePlant();
     this._root.getElementById("dh-cancel").onclick = () => this._closeDauerhaftModal();
     this._root.getElementById("dh-teil").onclick = () => this._saveDauerhaftHarvest(false);
     this._root.getElementById("dh-roden").onclick = () => this._saveDauerhaftHarvest(true);
-    this._root.getElementById("de-cancel").onclick = () => this._closeDateEdit();
-    this._root.getElementById("de-save").onclick = () => this._saveDateEdit();
   }
 
-  _renderList(errorMsg) {
+  _renderGrid(errorMsg) {
     const container = this._root.querySelector(".gt-grid-container");
     if (this._loaded === "error") {
-      container.innerHTML = `<div class="gt-error">Fehler beim Laden: ${errorMsg || "unbekannt"}</div>`;
+      container.innerHTML = `<div class="gt-error">Fehler beim Laden: ${errorMsg || "unbekannt"}. L\u00e4uft CORS auf der App?</div>`;
       return;
     }
     if (!this._loaded) {
       container.innerHTML = `<div class="gt-loading">Lade\u2026</div>`;
       return;
     }
-    const { groups, order } = this._getPlantGroups();
-    const year = new Date().getFullYear();
-    const rows = order.map(k => {
-      const g = groups[k];
-      const badges = [];
-      if (g.planned.length) badges.push(`<span class="gt-badge gt-badge-planned">\u{1F4C5} Geplant</span>`);
-      if (g.planted.length) badges.push(`<span class="gt-badge gt-badge-planted">\u{1F331} Gepflanzt</span>`);
-      const teil = g.harvests.filter(h => !h.harvest_final).length;
-      if (teil) badges.push(`<span class="gt-badge gt-badge-harvest">\u{1F33E} ${teil}x Teilernte</span>`);
-      if (g.harvests.some(h => h.harvest_final)) badges.push(`<span class="gt-badge gt-badge-final">\u2713 Final geerntet</span>`);
-      if (g.permanent.length) badges.push(`<span class="gt-badge gt-badge-permanent">\u{1F33F} Dauerhaft</span>`);
-      return `<div class="gt-plant-card" data-key="${this._esc(k)}">
-        <div class="gt-plant-head"><span class="gt-plant-emoji">${g.emoji || "\u{1F331}"}</span><div class="gt-plant-name">${this._esc(g.name)}</div></div>
-        <div class="gt-badges">${badges.join("")}</div>
-      </div>`;
-    });
-    const empty = order.length ? "" : `<div class="gt-empty">Keine Pflanzen ${year}.</div>`;
-    container.innerHTML = empty + rows.join("") + `<div class="gt-add-row" id="add-row">\u2795 Neue Pflanzung</div>`;
-    container.querySelectorAll(".gt-plant-card").forEach(el => {
-      el.onclick = () => this._openDetail(el.dataset.key);
-    });
-    container.querySelector("#add-row").onclick = () => this._openNewEntryModal();
-  }
 
-  _openDetail(key) {
-    const { groups } = this._getPlantGroups();
-    const g = groups[key];
-    if (!g) return;
-    this._currentDetailKey = key;
-    let html = "";
-    if (g.planned.length) {
-      html += `<div class="gt-pd-section"><div class="gt-pd-title">\u{1F4C5} Geplant</div>` + g.planned.map(p => `
-        <div class="gt-pd-row"><div class="gt-pd-row-main">${p.bed_id ? this._esc(this._bedPath(p.bed_id)) : "Kein Beet"}${p.month ? " \u00b7 " + p.month + "/" + p.year : ""}</div>
-        <div class="gt-pd-row-actions"><button class="gt-btn gt-btn-cancel" style="padding:4px 8px" onclick="this.getRootNode().host._deletePlanFromDetail(${p.id})">\u{1F5D1}</button></div></div>
-      `).join("") + `</div>`;
-    }
-    if (g.permanent.length) {
-      html += `<div class="gt-pd-section"><div class="gt-pd-title">\u{1F33F} Dauerhaft</div>` + g.permanent.map(p => `
-        <div class="gt-pd-row"><div class="gt-pd-row-main">${p.bed_id ? this._esc(this._bedPath(p.bed_id)) : "Kein Beet"} \u00b7 seit ${p.year}</div>
-        <div class="gt-pd-row-actions"><button class="gt-btn gt-btn-teil" style="padding:4px 8px" onclick="this.getRootNode().host._closeDetail();this.getRootNode().host._openDauerhaftModal(${p.bed_id || "null"},'${this._esc(g.name).replace(/'/g, "\\'")}','${g.emoji || "\u{1F331}"}',${p.id})">\u{1F33E}</button></div></div>
-      `).join("") + `</div>`;
-    }
-    if (g.planted.length) {
-      html += `<div class="gt-pd-section"><div class="gt-pd-title">\u{1F331} Pflanzungen</div>` + g.planted.map(e => `
-        <div class="gt-pd-row"><div class="gt-pd-row-main">${this._fmtDate(e.date)}${e.bed_id ? " \u00b7 " + this._esc(this._bedPath(e.bed_id)) : ""}</div>
-        <div class="gt-pd-row-actions">
-          <button class="gt-btn gt-btn-teil" style="padding:4px 8px" title="Ernte" onclick="this.getRootNode().host._closeDetail();this.getRootNode().host._openHarvestModal(${e.bed_id || "null"},'${this._esc(e.plant).replace(/'/g, "\\'")}','${e.emoji || "\u{1F331}"}')">\u{1F33E}</button>
-          <button class="gt-btn gt-btn-cancel" style="padding:4px 8px" title="Datum" onclick="this.getRootNode().host._openDateEdit(${e.id})">\u270F\uFE0F</button>
-          <button class="gt-btn gt-btn-cancel" style="padding:4px 8px" onclick="this.getRootNode().host._deleteEntryFromDetail(${e.id})">\u{1F5D1}</button>
-        </div></div>
-      `).join("") + `</div>`;
-    }
-    if (g.harvests.length) {
-      html += `<div class="gt-pd-section"><div class="gt-pd-title">\u{1F33E} Ernten</div>` + g.harvests.map(e => {
-        const menge = e.harvest_amount ? `${e.harvest_amount} ${e.harvest_unit || ""}` : "";
-        const fin = e.harvest_final ? `<span class="gt-badge gt-badge-final">\u2713 Final</span>` : `<span class="gt-badge gt-badge-harvest">Teilernte</span>`;
-        return `<div class="gt-pd-row"><div class="gt-pd-row-main">${this._fmtDate(e.date)}${menge ? " \u00b7 " + menge : ""} ${fin}</div>
-        <div class="gt-pd-row-actions">
-          <button class="gt-btn gt-btn-cancel" style="padding:4px 8px" title="Datum" onclick="this.getRootNode().host._openDateEdit(${e.id})">\u270F\uFE0F</button>
-          <button class="gt-btn gt-btn-cancel" style="padding:4px 8px" onclick="this.getRootNode().host._deleteEntryFromDetail(${e.id})">\u{1F5D1}</button>
-        </div></div>`;
-      }).join("") + `</div>`;
-    }
-    this._root.getElementById("detail-title").innerHTML = `${g.emoji || "\u{1F331}"} ${this._esc(g.name)}`;
-    this._root.getElementById("detail-body").innerHTML = html || `<div class="gt-empty">Keine Daten</div>`;
-    this._root.getElementById("detail-backdrop").classList.add("open");
-  }
-  _closeDetail() { this._root.getElementById("detail-backdrop").classList.remove("open"); }
-  async _refreshDetail() {
-    await this._loadData();
-    if (this._currentDetailKey) this._openDetail(this._currentDetailKey);
-  }
-  async _deleteEntryFromDetail(id) {
-    try {
-      const base = await this._base();
-      await fetch(`${base}/entries/${id}`, { method: "DELETE" });
-      this._refreshDetail();
-    } catch (e) { alert("Fehler: " + e.message); }
-  }
-  async _deletePlanFromDetail(id) {
-    try {
-      const base = await this._base();
-      await fetch(`${base}/plans/${id}`, { method: "DELETE" });
-      this._refreshDetail();
-    } catch (e) { alert("Fehler: " + e.message); }
-  }
+    let roots = this._beds.filter(b => !b.parent_id);
+    if (this._config.standort_id) roots = roots.filter(b => b.id === this._config.standort_id);
 
-  _fmtDate(d) {
-    if (!d) return "\u2013";
-    const [y, m, day] = d.split("-");
-    return `${day}.${m}.${y}`;
-  }
+    if (!roots.length) {
+      container.innerHTML = `<div class="gt-loading">Keine Standorte gefunden.</div>`;
+      return;
+    }
 
-  _openDateEdit(entryId) {
-    const e = this._entries.find(x => x.id === entryId);
-    if (!e) return;
-    this._dateEditEntry = e;
-    this._root.getElementById("de-date").value = e.date;
-    this._root.getElementById("date-edit-backdrop").classList.add("open");
-  }
-  _closeDateEdit() { this._root.getElementById("date-edit-backdrop").classList.remove("open"); }
-  async _saveDateEdit() {
-    const e = this._dateEditEntry;
-    if (!e) return;
-    const newDate = this._root.getElementById("de-date").value;
-    if (!newDate) return;
-    try {
-      const base = await this._base();
-      const r = await fetch(`${base}/entries/${e.id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emoji: e.emoji, plant: e.plant, date: newDate, location: e.location, description: e.description, cat: e.cat, bed_id: e.bed_id, plant_cat: e.plant_cat, plant_family_id: e.plant_family_id, harvest_amount: e.harvest_amount, harvest_unit: e.harvest_unit, plant_id: e.plant_id })
-      });
-      if (!r.ok) throw new Error(await r.text());
-      this._closeDateEdit();
-      this._refreshDetail();
-    } catch (err) { alert("Fehler: " + err.message); }
-  }
-
-  _openNewEntryModal() {
-    const sel = this._root.getElementById("ne-plant");
-    sel.innerHTML = `<option value="">\u2013 Pflanze w\u00e4hlen \u2013</option>` + this._plants.map(p =>
-      `<option value="${p.id}" data-emoji="${p.emoji}" data-fam="${p.plant_family_id || ""}">${p.emoji} ${this._esc(p.name)}</option>`
-    ).join("");
-    const bedSel = this._root.getElementById("ne-bed");
-    bedSel.innerHTML = `<option value="">\u2013 Kein Beet \u2013</option>` + this._beds
-      .filter(b => !b.parent_id)
-      .map(root => this._bedOptionsRecursive(root, 0)).join("");
-    this._root.getElementById("ne-date").value = this._today();
-    this._root.getElementById("ne-permanent").checked = false;
-    this._root.getElementById("new-entry-backdrop").classList.add("open");
-  }
-  _bedOptionsRecursive(bed, indent) {
-    const children = this._beds.filter(b => b.parent_id === bed.id);
-    let html = `<option value="${bed.id}">${"\u00a0\u00a0\u00a0".repeat(indent)}${this._esc(bed.name)}</option>`;
-    children.forEach(c => { html += this._bedOptionsRecursive(c, indent + 1); });
-    return html;
-  }
-  _closeNewEntryModal() { this._root.getElementById("new-entry-backdrop").classList.remove("open"); }
-  async _saveNewEntry() {
-    const sel = this._root.getElementById("ne-plant");
-    const opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value) { alert("Bitte Pflanze w\u00e4hlen"); return; }
-    const bedId = this._root.getElementById("ne-bed").value || null;
-    const date = this._root.getElementById("ne-date").value;
-    const isPermanent = this._root.getElementById("ne-permanent").checked;
-    const plantName = opt.textContent.trim().replace(/^\S+\s/, "");
-    const entry = {
-      id: Date.now(), emoji: opt.dataset.emoji, plant: plantName, date, cat: "plant",
-      bed_id: bedId ? parseInt(bedId, 10) : null, plant_id: parseInt(opt.value, 10),
-      plant_family_id: opt.dataset.fam ? parseInt(opt.dataset.fam, 10) : null
+    const getLeaves = (bed) => {
+      const children = this._beds.filter(b => b.parent_id === bed.id);
+      if (!children.length) return [bed];
+      return children.flatMap(getLeaves);
     };
-    try {
-      const base = await this._base();
-      const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry) });
-      if (!r.ok) throw new Error(await r.text());
-      if (isPermanent) {
-        const plan = {
-          id: Date.now() + 1, emoji: entry.emoji, plant: entry.plant, month: 0, month_to: 0,
-          year: new Date(date).getFullYear(), bed_id: entry.bed_id, plant_family_id: entry.plant_family_id,
-          is_permanent: true, plant_id: entry.plant_id
-        };
-        await fetch(`${base}/plans`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(plan) });
-      }
-      this._closeNewEntryModal();
-      await this._loadData();
-    } catch (e) { alert("Fehler beim Speichern: " + e.message); }
+
+    container.innerHTML = roots.map(standort => {
+      const zielListe = getLeaves(standort);
+      const tiles = zielListe.map(feld => {
+        const occ = (this._occupancy[feld.id] || [])[0];
+        if (occ && occ.source === "tagebuch") {
+          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="harvest" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}">
+            <div class="gt-feld-name">${this._esc(feld.name)}</div>
+            <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
+            <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
+          </div>`;
+        }
+        if (occ && occ.source === "dauerhaft") {
+          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="dauerhaft" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}" data-plan-id="${occ.plan_id}">
+            <div class="gt-feld-name">${this._esc(feld.name)}</div>
+            <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
+            <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
+            <div class="gt-feld-badge gt-feld-badge-dauerhaft">Dauerhaft</div>
+          </div>`;
+        }
+        if (occ && occ.source === "planer") {
+          return `<div class="gt-feld geplant" data-bed-id="${feld.id}" data-action="plan-convert" data-plan-id="${occ.plan_id}" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}">
+            <div class="gt-feld-name">${this._esc(feld.name)}</div>
+            <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
+            <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
+            <div class="gt-feld-badge">Geplant</div>
+          </div>`;
+        }
+        return `<div class="gt-feld leer" data-bed-id="${feld.id}" data-action="plant">
+          <div class="gt-feld-name">${this._esc(feld.name)}</div>
+          <div class="gt-feld-emoji">\u{2795}</div>
+          <div class="gt-feld-empty-label">leer</div>
+        </div>`;
+      }).join("");
+      return `<div class="gt-standort">
+        <div class="gt-standort-name">${this._esc(standort.name)}</div>
+        <div class="gt-felder">${tiles}</div>
+      </div>`;
+    }).join("");
+
+    container.querySelectorAll(".gt-feld").forEach(el => {
+      el.onclick = () => {
+        const bedId = parseInt(el.dataset.bedId, 10);
+        if (el.dataset.action === "harvest") {
+          this._openHarvestModal(bedId, el.dataset.plant, el.dataset.emoji);
+        } else if (el.dataset.action === "dauerhaft") {
+          this._openDauerhaftModal(bedId, el.dataset.plant, el.dataset.emoji, parseInt(el.dataset.planId, 10));
+        } else if (el.dataset.action === "plan-convert") {
+          this._convertPlanToEntry(bedId, parseInt(el.dataset.planId, 10), el.dataset.plant, el.dataset.emoji);
+        } else {
+          this._openPlantModal(bedId, null);
+        }
+      };
+    });
   }
+
+  _esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  _today() { return new Date().toISOString().split("T")[0]; }
 
   _openHarvestModal(bedId, plant, emoji) {
-    this._activeBedId = bedId; this._activePlant = plant; this._activeEmoji = emoji;
-    this._root.getElementById("harvest-sub").textContent = `${emoji} ${plant}${bedId ? " \u00b7 " + this._bedPath(bedId) : ""}`;
+    const bed = this._beds.find(b => b.id === bedId);
+    this._activeBedId = bedId;
+    this._activePlant = plant;
+    this._activeEmoji = emoji;
+    this._root.getElementById("harvest-sub").textContent = `${emoji} ${plant} \u00b7 ${bed ? bed.name : ""}`;
     this._root.getElementById("h-date").value = this._today();
     this._root.getElementById("h-amount").value = "";
     this._root.getElementById("h-unit").value = "kg";
@@ -472,41 +315,82 @@ class GartentagebuchFelderCard extends HTMLElement {
     this._root.getElementById("harvest-backdrop").classList.add("open");
   }
   _closeHarvestModal() { this._root.getElementById("harvest-backdrop").classList.remove("open"); }
-  async _saveHarvest(final) {
-    const amount = this._root.getElementById("h-amount").value;
-    const body = {
-      id: Date.now(), emoji: this._activeEmoji, plant: this._activePlant,
-      date: this._root.getElementById("h-date").value, cat: "harvest", bed_id: this._activeBedId,
-      description: this._root.getElementById("h-note").value || (final ? "Letzte Ernte" : ""),
-      harvest_amount: amount ? parseFloat(amount) : null, harvest_unit: this._root.getElementById("h-unit").value,
-      harvest_final: !!final
-    };
+
+  _openPlantModal(bedId, preselectName) {
+    const bed = this._beds.find(b => b.id === bedId);
+    this._activeBedId = bedId;
+    this._root.getElementById("plant-sub").textContent = (bed ? bed.name : "") + (preselectName ? " \u00b7 laut Planung: " + preselectName : "");
+    const sel = this._root.getElementById("p-plant");
+    sel.innerHTML = this._plants.map(p => `<option value="${p.id}" data-emoji="${p.emoji}" data-fam="${p.plant_family_id || ""}">${p.emoji} ${this._esc(p.name)}</option>`).join("");
+    if (preselectName) {
+      const match = this._plants.find(p => p.name.toLowerCase() === preselectName.toLowerCase());
+      if (match) sel.value = String(match.id);
+    }
+    this._root.getElementById("p-date").value = this._today();
+    this._root.getElementById("plant-backdrop").classList.add("open");
+  }
+  _closePlantModal() { this._root.getElementById("plant-backdrop").classList.remove("open"); }
+
+  async _convertPlanToEntry(bedId, planId, plant, emoji) {
+    const bed = this._beds.find(b => b.id === bedId);
+    if (!confirm(`${emoji} ${plant} in ${bed ? bed.name : "diesem Feld"} jetzt als gepflanzt ins Tagebuch eintragen?`)) return;
     try {
       const base = await this._base();
-      const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!r.ok) throw new Error(await r.text());
-      this._closeHarvestModal();
+      const plansRes = await fetch(`${base}/plans`);
+      const plans = await plansRes.json();
+      const plan = plans.find(p => String(p.id) === String(planId));
+      if (!plan) throw new Error("Planung nicht gefunden");
+      const r1 = await fetch(`${base}/plans/${planId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done: true }) });
+      if (!r1.ok) throw new Error(await r1.text());
+      const catalogMatch = plan.plant_id ? this._plants.find(p => p.id === plan.plant_id) : null;
+      const entry = {
+        id: Date.now(),
+        emoji: plan.emoji,
+        plant: plan.plant,
+        date: this._today(),
+        location: "",
+        description: "Aus Planung eingetragen",
+        cat: "plant",
+        bed_id: plan.bed_id || null,
+        plant_cat: catalogMatch ? catalogMatch.plant_cat : null,
+        plant_family_id: plan.plant_family_id || null
+      };
+      const r2 = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry) });
+      if (!r2.ok) throw new Error(await r2.text());
       await this._loadData();
-    } catch (e) { alert("Fehler beim Speichern: " + e.message); }
+    } catch (e) {
+      alert("Fehler: " + e.message);
+    }
   }
 
   _openDauerhaftModal(bedId, plant, emoji, planId) {
-    this._activePlanId = planId; this._activeDauerhaftEmoji = emoji; this._activeDauerhaftPlant = plant; this._activeDauerhaftBedId = bedId;
-    this._root.getElementById("dauerhaft-sub").textContent = `${emoji} ${plant}${bedId ? " \u00b7 " + this._bedPath(bedId) : ""}`;
+    const bed = this._beds.find(b => b.id === bedId);
+    this._activePlanId = planId;
+    this._activeDauerhaftEmoji = emoji;
+    this._activeDauerhaftPlant = plant;
+    this._activeDauerhaftBedId = bedId;
+    this._root.getElementById("dauerhaft-sub").textContent = `${emoji} ${plant} \u00b7 ${bed ? bed.name : ""}`;
     this._root.getElementById("dh-date").value = this._today();
     this._root.getElementById("dh-amount").value = "";
     this._root.getElementById("dh-unit").value = "kg";
     this._root.getElementById("dh-note").value = "";
     this._root.getElementById("dauerhaft-backdrop").classList.add("open");
   }
+
   _closeDauerhaftModal() { this._root.getElementById("dauerhaft-backdrop").classList.remove("open"); }
+
   async _saveDauerhaftHarvest(roden) {
     const amount = this._root.getElementById("dh-amount").value;
     const body = {
-      id: Date.now(), emoji: this._activeDauerhaftEmoji, plant: this._activeDauerhaftPlant,
-      date: this._root.getElementById("dh-date").value, cat: "harvest", bed_id: this._activeDauerhaftBedId,
+      id: Date.now(),
+      emoji: this._activeDauerhaftEmoji,
+      plant: this._activeDauerhaftPlant,
+      date: this._root.getElementById("dh-date").value,
+      cat: "harvest",
+      bed_id: this._activeDauerhaftBedId,
       description: this._root.getElementById("dh-note").value || (roden ? "Gerodet" : ""),
-      harvest_amount: amount ? parseFloat(amount) : null, harvest_unit: this._root.getElementById("dh-unit").value,
+      harvest_amount: amount ? parseFloat(amount) : null,
+      harvest_unit: this._root.getElementById("dh-unit").value,
       harvest_final: !!roden
     };
     try {
@@ -530,7 +414,59 @@ class GartentagebuchFelderCard extends HTMLElement {
       }
       this._closeDauerhaftModal();
       await this._loadData();
-    } catch (e) { alert("Fehler beim Speichern: " + e.message); }
+    } catch (e) {
+      alert("Fehler beim Speichern: " + e.message);
+    }
+  }
+
+  async _saveHarvest(final) {
+    const amount = this._root.getElementById("h-amount").value;
+    const body = {
+      id: Date.now(),
+      emoji: this._activeEmoji,
+      plant: this._activePlant,
+      date: this._root.getElementById("h-date").value,
+      cat: "harvest",
+      bed_id: this._activeBedId,
+      description: this._root.getElementById("h-note").value || (final ? "Letzte Ernte" : ""),
+      harvest_amount: amount ? parseFloat(amount) : null,
+      harvest_unit: this._root.getElementById("h-unit").value,
+      harvest_final: !!final
+    };
+    try {
+      const base = await this._base();
+      const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      this._closeHarvestModal();
+      await this._loadData();
+    } catch (e) {
+      alert("Fehler beim Speichern: " + e.message);
+    }
+  }
+
+  async _savePlant() {
+    const sel = this._root.getElementById("p-plant");
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt) { alert("Bitte Pflanze w\u00e4hlen"); return; }
+    const body = {
+      id: Date.now(),
+      emoji: opt.dataset.emoji || "\u{1F331}",
+      plant: opt.textContent.trim().replace(/^\S+\s/, ""),
+      date: this._root.getElementById("p-date").value,
+      cat: "plant",
+      bed_id: this._activeBedId,
+      plant_id: parseInt(opt.value, 10),
+      plant_family_id: opt.dataset.fam ? parseInt(opt.dataset.fam, 10) : null
+    };
+    try {
+      const base = await this._base();
+      const r = await fetch(`${base}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      this._closePlantModal();
+      await this._loadData();
+    } catch (e) {
+      alert("Fehler beim Speichern: " + e.message);
+    }
   }
 }
 
@@ -554,7 +490,8 @@ class GartentagebuchFelderCardEditor extends HTMLElement {
       { name: "design", selector: { select: { mode: "dropdown", options: [
         { value: "light", label: "Hell" },
         { value: "dark", label: "Dunkel" }
-      ] } } }
+      ] } } },
+      { name: "standort_id", selector: { number: { mode: "box" } } }
     ];
   }
 
@@ -562,7 +499,8 @@ class GartentagebuchFelderCardEditor extends HTMLElement {
     const map = {
       title: "Titel",
       addon_slug: "Add-on Slug (z.B. 3744e95d_garden_journal)",
-      design: "Design"
+      design: "Design",
+      standort_id: "Standort-ID (optional, nur einen Standort anzeigen)"
     };
     return map[name] || name;
   }
