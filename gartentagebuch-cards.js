@@ -43,6 +43,17 @@ class GartentagebuchFelderCard extends HTMLElement {
     return this._ingressBase;
   }
 
+  async _fetchJson(url) {
+    const r = await fetch(url);
+    const text = await r.text();
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 200)}`);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Ung\u00fcltige Antwort (kein JSON, Add-on evtl. noch am Starten): ${text.slice(0, 100)}`);
+    }
+  }
+
   getCardSize() { return 4; }
 
   static getConfigElement() {
@@ -53,13 +64,14 @@ class GartentagebuchFelderCard extends HTMLElement {
     return { title: "Garten", addon_slug: "", design: "light" };
   }
 
-  async _loadData() {
+  async _loadData(retryCount) {
+    retryCount = retryCount || 0;
     try {
       const base = await this._base();
       const [beds, occ, plants] = await Promise.all([
-        fetch(`${base}/beds`).then(r => r.json()),
-        fetch(`${base}/beds/occupancy`).then(r => r.json()),
-        fetch(`${base}/plants`).then(r => r.json()).catch(() => [])
+        this._fetchJson(`${base}/beds`),
+        this._fetchJson(`${base}/beds/occupancy`),
+        this._fetchJson(`${base}/plants`).catch(() => [])
       ]);
       this._beds = beds;
       this._occupancy = occ;
@@ -67,6 +79,10 @@ class GartentagebuchFelderCard extends HTMLElement {
       this._loaded = true;
       this._renderGrid();
     } catch (e) {
+      if (retryCount < 5) {
+        setTimeout(() => this._loadData(retryCount + 1), 2000 * (retryCount + 1));
+        return;
+      }
       this._loaded = "error";
       this._renderGrid((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
@@ -550,6 +566,17 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
     return this._ingressBase;
   }
 
+  async _fetchJson(url) {
+    const r = await fetch(url);
+    const text = await r.text();
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 200)}`);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Ung\u00fcltige Antwort (kein JSON, Add-on evtl. noch am Starten): ${text.slice(0, 100)}`);
+    }
+  }
+
   getCardSize() { return 3; }
 
   static getConfigElement() {
@@ -560,18 +587,23 @@ class GartentagebuchGehoelzeCard extends HTMLElement {
     return { title: "Gehoelze", addon_slug: "", design: "light" };
   }
 
-  async _loadData() {
+  async _loadData(retryCount) {
+    retryCount = retryCount || 0;
     try {
       const base = await this._base();
       const [items, plants] = await Promise.all([
-        fetch(`${base}/perennials`).then(r => r.json()),
-        fetch(`${base}/plants`).then(r => r.json()).catch(() => [])
+        this._fetchJson(`${base}/perennials`),
+        this._fetchJson(`${base}/plants`).catch(() => [])
       ]);
       this._items = items.filter(i => !i.removed_year);
       this._plants = plants;
       this._loaded = true;
       this._renderList();
     } catch (e) {
+      if (retryCount < 5) {
+        setTimeout(() => this._loadData(retryCount + 1), 2000 * (retryCount + 1));
+        return;
+      }
       this._loaded = "error";
       this._renderList((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
@@ -896,6 +928,17 @@ class GartentagebuchUebersichtCard extends HTMLElement {
     return this._ingressBase;
   }
 
+  async _fetchJson(url) {
+    const r = await fetch(url);
+    const text = await r.text();
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 200)}`);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Ung\u00fcltige Antwort (kein JSON, Add-on evtl. noch am Starten): ${text.slice(0, 100)}`);
+    }
+  }
+
   getCardSize() { return 2; }
 
   static getConfigElement() {
@@ -906,14 +949,15 @@ class GartentagebuchUebersichtCard extends HTMLElement {
     return { title: "Garten \u00dcbersicht", addon_slug: "", design: "light" };
   }
 
-  async _loadData() {
+  async _loadData(retryCount) {
+    retryCount = retryCount || 0;
     try {
       const base = await this._base();
       const [occ, perennials, entries, costs] = await Promise.all([
-        fetch(`${base}/beds/occupancy`).then(r => r.json()),
-        fetch(`${base}/perennials`).then(r => r.json()),
-        fetch(`${base}/entries`).then(r => r.json()),
-        fetch(`${base}/costs`).then(r => r.json())
+        this._fetchJson(`${base}/beds/occupancy`),
+        this._fetchJson(`${base}/perennials`),
+        this._fetchJson(`${base}/entries`),
+        this._fetchJson(`${base}/costs`)
       ]);
 
       const year = new Date().getFullYear();
@@ -946,6 +990,10 @@ class GartentagebuchUebersichtCard extends HTMLElement {
       this._loaded = true;
       this._renderStats();
     } catch (e) {
+      if (retryCount < 5) {
+        setTimeout(() => this._loadData(retryCount + 1), 2000 * (retryCount + 1));
+        return;
+      }
       this._loaded = "error";
       this._renderStats((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
@@ -1121,6 +1169,17 @@ class GartentagebuchKostenCard extends HTMLElement {
     return this._ingressBase;
   }
 
+  async _fetchJson(url) {
+    const r = await fetch(url);
+    const text = await r.text();
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 200)}`);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Ung\u00fcltige Antwort (kein JSON, Add-on evtl. noch am Starten): ${text.slice(0, 100)}`);
+    }
+  }
+
   getCardSize() { return 3; }
 
   static getConfigElement() {
@@ -1131,18 +1190,23 @@ class GartentagebuchKostenCard extends HTMLElement {
     return { title: "Garten Kosten", addon_slug: "", design: "light" };
   }
 
-  async _loadData() {
+  async _loadData(retryCount) {
+    retryCount = retryCount || 0;
     try {
       const base = await this._base();
       const [costs, kategorien] = await Promise.all([
-        fetch(`${base}/costs`).then(r => r.json()),
-        fetch(`${base}/costs/kategorien`).then(r => r.json())
+        this._fetchJson(`${base}/costs`),
+        this._fetchJson(`${base}/costs/kategorien`)
       ]);
       this._costs = costs;
       this._kategorien = kategorien;
       this._loaded = true;
       this._renderContent();
     } catch (e) {
+      if (retryCount < 5) {
+        setTimeout(() => this._loadData(retryCount + 1), 2000 * (retryCount + 1));
+        return;
+      }
       this._loaded = "error";
       this._renderContent((e && (e.message || e.error || e.error_message || (typeof e === "string" ? e : JSON.stringify(e)))));
     }
