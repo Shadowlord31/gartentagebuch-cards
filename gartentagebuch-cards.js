@@ -248,14 +248,14 @@ class GartentagebuchFelderCard extends HTMLElement {
       const tiles = zielListe.map(feld => {
         const occ = (this._occupancy[feld.id] || [])[0];
         if (occ && occ.source === "tagebuch") {
-          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="harvest" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}">
+          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="harvest" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}" data-plant-id="${occ.plant_id || ""}">
             <div class="gt-feld-name">${this._esc(feld.name)}</div>
             <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
             <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
           </div>`;
         }
         if (occ && occ.source === "dauerhaft") {
-          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="dauerhaft" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}" data-plan-id="${occ.plan_id}">
+          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="dauerhaft" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}" data-plan-id="${occ.plan_id}" data-plant-id="${occ.plant_id || ""}">
             <div class="gt-feld-name">${this._esc(feld.name)}</div>
             <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
             <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
@@ -286,9 +286,9 @@ class GartentagebuchFelderCard extends HTMLElement {
       el.onclick = () => {
         const bedId = parseInt(el.dataset.bedId, 10);
         if (el.dataset.action === "harvest") {
-          this._openHarvestModal(bedId, el.dataset.plant, el.dataset.emoji);
+          this._openHarvestModal(bedId, el.dataset.plant, el.dataset.emoji, el.dataset.plantId || null);
         } else if (el.dataset.action === "dauerhaft") {
-          this._openDauerhaftModal(bedId, el.dataset.plant, el.dataset.emoji, parseInt(el.dataset.planId, 10));
+          this._openDauerhaftModal(bedId, el.dataset.plant, el.dataset.emoji, parseInt(el.dataset.planId, 10), el.dataset.plantId || null);
         } else if (el.dataset.action === "plan-convert") {
           this._convertPlanToEntry(bedId, parseInt(el.dataset.planId, 10), el.dataset.plant, el.dataset.emoji);
         } else {
@@ -302,11 +302,12 @@ class GartentagebuchFelderCard extends HTMLElement {
 
   _today() { return new Date().toISOString().split("T")[0]; }
 
-  _openHarvestModal(bedId, plant, emoji) {
+  _openHarvestModal(bedId, plant, emoji, plantId) {
     const bed = this._beds.find(b => b.id === bedId);
     this._activeBedId = bedId;
     this._activePlant = plant;
     this._activeEmoji = emoji;
+    this._activePlantId = plantId ? parseInt(plantId, 10) : null;
     this._root.getElementById("harvest-sub").textContent = `${emoji} ${plant} \u00b7 ${bed ? bed.name : ""}`;
     this._root.getElementById("h-date").value = this._today();
     this._root.getElementById("h-amount").value = "";
@@ -363,12 +364,13 @@ class GartentagebuchFelderCard extends HTMLElement {
     }
   }
 
-  _openDauerhaftModal(bedId, plant, emoji, planId) {
+  _openDauerhaftModal(bedId, plant, emoji, planId, plantId) {
     const bed = this._beds.find(b => b.id === bedId);
     this._activePlanId = planId;
     this._activeDauerhaftEmoji = emoji;
     this._activeDauerhaftPlant = plant;
     this._activeDauerhaftBedId = bedId;
+    this._activeDauerhaftPlantId = plantId ? parseInt(plantId, 10) : null;
     this._root.getElementById("dauerhaft-sub").textContent = `${emoji} ${plant} \u00b7 ${bed ? bed.name : ""}`;
     this._root.getElementById("dh-date").value = this._today();
     this._root.getElementById("dh-amount").value = "";
@@ -388,6 +390,7 @@ class GartentagebuchFelderCard extends HTMLElement {
       date: this._root.getElementById("dh-date").value,
       cat: "harvest",
       bed_id: this._activeDauerhaftBedId,
+      plant_id: this._activeDauerhaftPlantId || null,
       description: this._root.getElementById("dh-note").value || (roden ? "Gerodet" : ""),
       harvest_amount: amount ? parseFloat(amount) : null,
       harvest_unit: this._root.getElementById("dh-unit").value,
@@ -428,6 +431,7 @@ class GartentagebuchFelderCard extends HTMLElement {
       date: this._root.getElementById("h-date").value,
       cat: "harvest",
       bed_id: this._activeBedId,
+      plant_id: this._activePlantId || null,
       description: this._root.getElementById("h-note").value || (final ? "Letzte Ernte" : ""),
       harvest_amount: amount ? parseFloat(amount) : null,
       harvest_unit: this._root.getElementById("h-unit").value,
