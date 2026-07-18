@@ -121,6 +121,14 @@ class GartentagebuchFelderCard extends HTMLElement {
         .gt-feld-emoji { font-size:1.6rem; }
         .gt-feld-plant { font-size:.85rem; font-weight:600; color:var(--gt-text); margin-top:2px; }
         .gt-feld-empty-label { font-size:.8rem; color:var(--gt-text-muted); margin-top:2px; }
+        .gt-feld.gt-feld-multi { text-align:left; cursor:default; }
+        .gt-feld.gt-feld-multi:hover { border-color:var(--gt-bg-alt); transform:none; }
+        .gt-feld.gt-feld-multi .gt-feld-name { text-align:center; margin-bottom:8px; }
+        .gt-feld-plant-row { display:flex; align-items:center; gap:6px; padding:6px 4px; border-radius:8px; cursor:pointer; transition:.15s; }
+        .gt-feld-plant-row:hover { background:var(--gt-bg-alt); }
+        .gt-feld-plant-row:not(:last-child) { margin-bottom:2px; }
+        .gt-feld-plant-emoji { font-size:1.15rem; flex-shrink:0; }
+        .gt-feld-plant-name { font-size:.82rem; font-weight:600; color:var(--gt-text); flex:1; }
         .gt-loading, .gt-error { color:var(--gt-text-muted); font-size:.9rem; padding:8px 0; }
         .gt-error { color:#e05d4a; }
 
@@ -246,34 +254,27 @@ class GartentagebuchFelderCard extends HTMLElement {
     container.innerHTML = roots.map(standort => {
       const zielListe = getLeaves(standort);
       const tiles = zielListe.map(feld => {
-        const occ = (this._occupancy[feld.id] || [])[0];
-        if (occ && occ.source === "tagebuch") {
-          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="harvest" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}" data-plant-id="${occ.plant_id || ""}">
+        const occs = this._occupancy[feld.id] || [];
+        if (!occs.length) {
+          return `<div class="gt-feld leer" data-bed-id="${feld.id}" data-action="plant">
             <div class="gt-feld-name">${this._esc(feld.name)}</div>
-            <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
-            <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
+            <div class="gt-feld-emoji">\u{2795}</div>
+            <div class="gt-feld-empty-label">leer</div>
           </div>`;
         }
-        if (occ && occ.source === "dauerhaft") {
-          return `<div class="gt-feld" data-bed-id="${feld.id}" data-action="dauerhaft" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}" data-plan-id="${occ.plan_id}" data-plant-id="${occ.plant_id || ""}">
-            <div class="gt-feld-name">${this._esc(feld.name)}</div>
-            <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
-            <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
-            <div class="gt-feld-badge gt-feld-badge-dauerhaft">Dauerhaft</div>
+        const rows = occs.map(occ => {
+          let action = "harvest", badge = "";
+          if (occ.source === "dauerhaft") { action = "dauerhaft"; badge = '<span class="gt-feld-badge gt-feld-badge-dauerhaft">Dauerhaft</span>'; }
+          else if (occ.source === "planer") { action = "plan-convert"; badge = '<span class="gt-feld-badge">Geplant</span>'; }
+          return `<div class="gt-feld-plant-row" data-bed-id="${feld.id}" data-action="${action}" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}" data-plan-id="${occ.plan_id || ""}" data-plant-id="${occ.plant_id || ""}">
+            <span class="gt-feld-plant-emoji">${occ.emoji || "\u{1F331}"}</span>
+            <span class="gt-feld-plant-name">${this._esc(occ.plant)}</span>
+            ${badge}
           </div>`;
-        }
-        if (occ && occ.source === "planer") {
-          return `<div class="gt-feld geplant" data-bed-id="${feld.id}" data-action="plan-convert" data-plan-id="${occ.plan_id}" data-plant="${this._esc(occ.plant)}" data-emoji="${occ.emoji || "\u{1F331}"}">
-            <div class="gt-feld-name">${this._esc(feld.name)}</div>
-            <div class="gt-feld-emoji">${occ.emoji || "\u{1F331}"}</div>
-            <div class="gt-feld-plant">${this._esc(occ.plant)}</div>
-            <div class="gt-feld-badge">Geplant</div>
-          </div>`;
-        }
-        return `<div class="gt-feld leer" data-bed-id="${feld.id}" data-action="plant">
+        }).join("");
+        return `<div class="gt-feld gt-feld-multi">
           <div class="gt-feld-name">${this._esc(feld.name)}</div>
-          <div class="gt-feld-emoji">\u{2795}</div>
-          <div class="gt-feld-empty-label">leer</div>
+          ${rows}
         </div>`;
       }).join("");
       return `<div class="gt-standort">
@@ -282,8 +283,15 @@ class GartentagebuchFelderCard extends HTMLElement {
       </div>`;
     }).join("");
 
-    container.querySelectorAll(".gt-feld").forEach(el => {
+    container.querySelectorAll(".gt-feld.leer").forEach(el => {
       el.onclick = () => {
+        const bedId = parseInt(el.dataset.bedId, 10);
+        this._openPlantModal(bedId, null);
+      };
+    });
+    container.querySelectorAll(".gt-feld-plant-row").forEach(el => {
+      el.onclick = (ev) => {
+        ev.stopPropagation();
         const bedId = parseInt(el.dataset.bedId, 10);
         if (el.dataset.action === "harvest") {
           this._openHarvestModal(bedId, el.dataset.plant, el.dataset.emoji, el.dataset.plantId || null);
@@ -291,8 +299,6 @@ class GartentagebuchFelderCard extends HTMLElement {
           this._openDauerhaftModal(bedId, el.dataset.plant, el.dataset.emoji, parseInt(el.dataset.planId, 10), el.dataset.plantId || null);
         } else if (el.dataset.action === "plan-convert") {
           this._convertPlanToEntry(bedId, parseInt(el.dataset.planId, 10), el.dataset.plant, el.dataset.emoji);
-        } else {
-          this._openPlantModal(bedId, null);
         }
       };
     });
